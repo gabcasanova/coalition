@@ -313,15 +313,14 @@ export class BoardScene {
     const s0 = esc.boardS;
     const s1 = esc.alightS;
     await hop(from, esc.pointAt(s0, lane));
-    // Ride standing on a tread: the steps speed up to carry the pawn.
+    // Ride standing on a tread: the stairs start moving to carry the pawn down.
     const rideSpeed = 1.6;
-    const idle = esc.speed;
     esc.speed = rideSpeed * settings.speed;
     await this.tween((s1 - s0) / rideSpeed, (k) => {
       pawn.position.copy(esc.pointAt(s0 + (s1 - s0) * k, lane));
       pawn.rotation.z = Math.sin(k * Math.PI * 5) * 0.05;
     });
-    esc.speed = idle;
+    esc.speed = 0; // the stairs stop again once the pawn is off
     pawn.rotation.z = 0;
     await hop(esc.pointAt(s1, lane), to);
   }

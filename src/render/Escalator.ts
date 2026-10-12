@@ -35,8 +35,8 @@ export class Escalator {
   readonly length: number;
   private readonly steps: THREE.Mesh[] = [];
   private offset = 0;
-  /** Tread speed along the run, in units per second. */
-  speed = 0.45;
+  /** Tread speed along the run, in units per second: still until a pawn rides it. */
+  speed = 0;
 
   constructor(private readonly spec: EscalatorSpec) {
     this.length = spec.radius * (spec.to - spec.from);
@@ -154,6 +154,7 @@ export class Escalator {
   }
 
   update(dt: number): void {
+    if (!this.speed) return;
     this.offset += this.speed * dt;
     this.layoutSteps();
   }
