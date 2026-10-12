@@ -30,8 +30,8 @@ async function main() {
     refresh: () => hud.refresh(),
     log: (html, tone) => hud.log(html, tone),
     setActive: (id) => {
+      // The camera holds still while "NOW PLAYING" shows; it moves when the wheel or the pawn does.
       board.setActive(id);
-      board.focusPawn(id, 'medium');
       hud.setNow(id);
       hud.refresh();
     },
