@@ -53,6 +53,7 @@ async function main() {
       hud.refresh();
     },
     pmTakesSeat: (id) => board.pmTakesSeat(id, engine.players),
+    oppositionForms: (leaderId, ids) => board.oppositionForms(leaderId, ids, engine.players),
     spotlight: (id) => board.focusPawn(id, 'medium'),
     popChanged: (id, delta) => board.floatText(id, fmt(delta), delta > 0 ? 0x4cd185 : 0xff6b6b),
     electionNight: (r) => hud.electionNight(r),
@@ -96,7 +97,7 @@ function showDemoParliament(board: BoardScene): void {
     stats: { pmYears: 0, cabinetYears: 0, billsPassed: 0, billsIntroduced: 0, electionWins: 0 },
   }));
   board.updateSeats(demo);
-  void board.pmTakesSeat(0, demo, true);
+  board.seatLeaders(demo);
   board.updatePodium(demo.map((p) => ({ party: p.party, wins: 0 })));
 }
 

@@ -77,6 +77,12 @@ export const ideologyScore = (a: Axes) => a.econ * 0.45 + a.social * 0.35 + a.in
  * Seating order for the chamber, left to right: opposition benches (by ideology),
  * then the government benches with the Prime Minister's party at the far right.
  */
+/** The Leader of the Opposition: the largest party outside the government (none until a government exists). */
+export function oppositionLeader<T extends { id: number; inGov: boolean; isPM: boolean; seats: number }>(players: T[]): T | undefined {
+  if (!players.some((p) => p.isPM)) return undefined;
+  return [...players].filter((p) => !p.inGov && p.seats > 0).sort((a, b) => b.seats - a.seats || a.id - b.id)[0];
+}
+
 export function benchOrder<T extends { inGov: boolean; isPM: boolean; party: { axes: Axes } }>(players: T[]): T[] {
   const byIdeology = (a: T, b: T) => ideologyScore(a.party.axes) - ideologyScore(b.party.axes);
   const opp = players.filter((p) => !p.inGov).sort(byIdeology);

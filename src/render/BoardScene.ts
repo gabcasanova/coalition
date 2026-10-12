@@ -2,15 +2,24 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { BOARD, isAnchor, SQUARE_META } from '../core/board';
-import { benchOrder, BOARD_SIZE, TOTAL_SEATS } from '../core/rules';
+import { benchOrder, BOARD_SIZE, oppositionLeader, TOTAL_SEATS } from '../core/rules';
 import { L } from '../core/i18n';
 import { settings } from '../core/settings';
+import { Escalator } from './Escalator';
 import type { CardFace, DeckKind, Player } from '../core/types';
 import { cardFaceTexture, deckTexture, drawPortrait, nameplateTexture, headlineTexture, drawLedPlaque, portraitCanvas, floatTexture, labelTexture, plaqueCanvas, tileTexture, titleTexture, wheelTexture } from './textures';
 
-const RING_R = 22;
+/**
+ * The track has a gap ESC_GAP squares wide between the Election square (0) and the Cabinet square (1), where the
+ * escalator runs down from the summit. The ring is enlarged so every square keeps its original size.
+ */
+const ESC_GAP = 2;
+const PITCH = (Math.PI * 2) / (BOARD_SIZE + ESC_GAP);
+const RING_R = (22 * (BOARD_SIZE + ESC_GAP)) / BOARD_SIZE;
+/** Board angle of square i (radians, clockwise from the far side, where the Election square sits). */
+const squareAngle = (i: number) => (i === 0 ? 0 : (i + ESC_GAP) * PITCH);
 const TILE_DEPTH = 4;
-const TILE_W = ((2 * Math.PI * RING_R) / BOARD_SIZE) * 0.94;
+const TILE_W = RING_R * PITCH * 0.94;
 const WHEEL_R = 6;
 const MAX_DT = 1 / 30;
 
@@ -22,7 +31,7 @@ const AISLE_GAP = 0.32;
 const END_GAP = 0.24;
 /** Leader figures are big peg people. */
 const LEADER_SCALE = 2.2;
-/** Where the "race to win" podium stands: beside the opposition benches, facing the camera side. */
+/** Where the overall-standings podium stands: beside the opposition benches, facing the camera side. */
 const PODIUM_POS = new THREE.Vector3(-12.8, 0, 2.7);
 
 /** A little peg person (Game of Life style): rounded body plus a ball head. Origin sits 0.3 above the bench. */
@@ -84,6 +93,8 @@ export class BoardScene {
   private readonly timer = new THREE.Timer();
   private tweens: Tween[] = [];
   private tileAnchors: THREE.Object3D[] = [];
+  /** Carries pawns down from the Election square (the summit) to the Cabinet square at the start of a year. */
+  private escalator!: Escalator;
   private tileTops: THREE.MeshStandardMaterial[] = [];
   private tileMeshes: THREE.Mesh[] = [];
   private readonly wheel = new THREE.Group();
@@ -156,6 +167,7 @@ export class BoardScene {
     this.buildLights();
     this.buildTable();
     this.buildTrack();
+    this.buildEscalator();
     this.buildWheel();
     this.buildHemicycle();
     this.buildDecks();
@@ -233,7 +245,7 @@ export class BoardScene {
   private buildTrack(): void {
     for (let i = 0; i < BOARD_SIZE; i++) {
       const type = BOARD[i];
-      const a = (i / BOARD_SIZE) * Math.PI * 2;
+      const a = squareAngle(i);
       const pos = new THREE.Vector3(RING_R * Math.sin(a), 0, -RING_R * Math.cos(a));
       const group = new THREE.Group();
       group.position.copy(pos);
@@ -269,6 +281,49 @@ export class BoardScene {
     beacon.userData.spin = true;
     beacon.name = 'beacon';
     this.scene.add(beacon);
+  }
+
+  /** The escalator in the track's gap, from the edge of the Election square straight down to the Cabinet square. */
+  private buildEscalator(): void {
+    const half = TILE_W / 2 / RING_R; // half a square's width, as an angle
+    this.escalator = new Escalator({
+      radius: RING_R,
+      from: squareAngle(0) + half,
+      to: squareAngle(1) - half,
+      top: tileHeight(0) + 0.06,
+      bottom: tileHeight(1) + 0.06,
+      width: TILE_DEPTH,
+      topColor: SQUARE_META.election.color,
+      bottomColor: SQUARE_META.formation.color,
+    });
+    this.scene.add(this.escalator.group);
+  }
+
+  /** A pawn rides the escalator from the Election square down to the Cabinet square. */
+  private async rideEscalator(pawn: THREE.Group, from: THREE.Vector3, to: THREE.Vector3): Promise<void> {
+    const esc = this.escalator;
+    const hop = (a: THREE.Vector3, b: THREE.Vector3) =>
+      this.tween(0.4, (k) => {
+        const e = easeInOut(k);
+        pawn.position.lerpVectors(a, b, e);
+        pawn.position.y = a.y + (b.y - a.y) * e + Math.sin(k * Math.PI) * 0.6;
+      });
+    // The treads are as wide as a square, so each pawn keeps its own lane across them.
+    const lane = Math.hypot(from.x, from.z) - RING_R;
+    const s0 = esc.boardS;
+    const s1 = esc.alightS;
+    await hop(from, esc.pointAt(s0, lane));
+    // Ride standing on a tread: the steps speed up to carry the pawn.
+    const rideSpeed = 1.6;
+    const idle = esc.speed;
+    esc.speed = rideSpeed * settings.speed;
+    await this.tween((s1 - s0) / rideSpeed, (k) => {
+      pawn.position.copy(esc.pointAt(s0 + (s1 - s0) * k, lane));
+      pawn.rotation.z = Math.sin(k * Math.PI * 5) * 0.05;
+    });
+    esc.speed = idle;
+    pawn.rotation.z = 0;
+    await hop(esc.pointAt(s1, lane), to);
   }
 
   private buildWheel(): void {
@@ -605,6 +660,10 @@ export class BoardScene {
     for (let s = 1; s <= steps; s++) {
       const a = this.slot((from + s - 1) % BOARD_SIZE, id);
       const b = this.slot((from + s) % BOARD_SIZE, id);
+      if ((from + s - 1) % BOARD_SIZE === 0) {
+        await this.rideEscalator(pawn, a, b); // a new year: down from the summit
+        continue;
+      }
       await this.tween(0.26, (k) => {
         const e = easeInOut(k);
         pawn.position.lerpVectors(a, b, e);
@@ -986,25 +1045,79 @@ export class BoardScene {
   async pmTakesSeat(id: number, players: Player[], instant = false): Promise<void> {
     const p = players.find((q) => q.id === id);
     if (!p) return;
-    if (instant) {
-      this.removeLeader('pm');
-      const fig = this.makeLeader(p);
-      fig.position.copy(this.daisSpot('pm'));
-      this.scene.add(fig);
-      this.leaders.pm = { id, fig };
-      return;
-    }
+    if (instant) return this.placeLeader('pm', p);
     await this.walkLeader('pm', p, true);
     await this.wait(0.6);
+  }
+
+  private placeLeader(role: 'pm' | 'opp', p: Player): void {
+    this.removeLeader(role);
+    const fig = this.makeLeader(p);
+    fig.position.copy(this.daisSpot(role));
+    this.scene.add(fig);
+    this.leaders[role] = { id: p.id, fig };
+  }
+
+  /** Puts both leaders straight at their daises (no animation): used behind the title screen. */
+  seatLeaders(players: Player[]): void {
+    const pm = players.find((q) => q.isPM);
+    const opp = oppositionLeader(players);
+    if (pm) this.placeLeader('pm', pm);
+    if (opp) this.placeLeader('opp', opp);
+  }
+
+  /**
+   * The opposition takes shape: its MPs rise in a wave across the opposition benches under a headline, then
+   * the Leader of the Opposition walks to their dais.
+   */
+  async oppositionForms(leaderId: number, memberIds: number[], players: Player[]): Promise<void> {
+    const leader = players.find((q) => q.id === leaderId);
+    if (!leader) return;
+    const members = new Set(memberIds);
+    if (this.cinematic) {
+      const target = new THREE.Vector3(-9.5, 1.2, -5);
+      this.shot = () => ({ pos: new THREE.Vector3(-1, 13, 10), target, rate: 2.2 });
+      await this.wait(0.8);
+    }
+    const tex = headlineTexture(L('OPPOSITION FORMED', 'OPOSIÇÃO FORMADA'), 0xff6b6b);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    const sign = new THREE.Sprite(mat);
+    sign.scale.set(9, 1.9, 1);
+    sign.position.set(-9, 6.5, -6);
+    sign.renderOrder = 15;
+    this.scene.add(sign);
+    await this.tween(2.6, (k) => {
+      const fade = 1 - Math.max(0, (k - 0.85) / 0.15);
+      for (let i = 0; i < TOTAL_SEATS; i++) {
+        if (!members.has(this.seatOwner[i])) continue;
+        // The wave starts at the aisle and rolls out to the end of the chamber.
+        const p = this.seatPos[i];
+        const phi = Math.atan2(-p.z, p.x);
+        const along = (phi - this.aisleAngle) / Math.max(0.01, Math.PI - this.aisleAngle);
+        const w = THREE.MathUtils.clamp(k * 1.6 - along * 0.6, 0, 1);
+        this.setSeat(i, Math.sin(w * Math.PI) * 0.6 * fade);
+      }
+      this.seatMesh.instanceMatrix.needsUpdate = true;
+      sign.position.y = 6.5 + Math.sin(k * Math.PI) * 0.5;
+      mat.opacity = Math.min(1, k * 5) * fade;
+    });
+    for (let i = 0; i < TOTAL_SEATS; i++) this.setSeat(i);
+    this.seatMesh.instanceMatrix.needsUpdate = true;
+    this.scene.remove(sign);
+    tex.dispose();
+    mat.dispose();
+    await this.walkLeader('opp', leader, true);
+    await this.wait(0.5);
   }
 
   /** Keeps the leader figures in step with the chamber: the PM leaves when they lose office; the Opposition Leader follows the largest opposition party. */
   private updateLeaders(players: Player[]): void {
     const pm = players.find((q) => q.isPM);
     if (this.leaders.pm && (!pm || pm.id !== this.leaders.pm.id)) this.removeLeader('pm');
-    const opp = pm ? [...players].filter((q) => !q.inGov && q.seats > 0).sort((a, b) => b.seats - a.seats || a.id - b.id)[0] : undefined;
+    const opp = oppositionLeader(players);
     if (!opp) this.removeLeader('opp');
-    else if (opp.id !== this.leaders.opp?.id) void this.walkLeader('opp', opp, false);
+    // A new government is seated first (oppositionForms then walks the leader in); mid-year changes walk in on their own.
+    else if (opp.id !== this.leaders.opp?.id && pm && this.leaders.pm?.id === pm.id) void this.walkLeader('opp', opp, false);
   }
 
   /** The official portrait of the Prime Minister, hung behind the chamber between the two LED boards. */
@@ -1157,7 +1270,7 @@ export class BoardScene {
   /** Podium beside the parliament with a step for every party. */
   private buildPodium(): void {
     this.podium.position.copy(PODIUM_POS);
-    const title = new THREE.Sprite(new THREE.SpriteMaterial({ map: titleTexture(L('RACE TO WIN', 'CORRIDA PELA VITÓRIA'), L('most elections won', 'mais eleições vencidas')), depthWrite: false }));
+    const title = new THREE.Sprite(new THREE.SpriteMaterial({ map: titleTexture(L('OVERALL STANDINGS', 'PLACAR GERAL'), L('elections won', 'eleições vencidas')), depthWrite: false }));
     title.scale.set(5.6, 1.4, 1);
     title.position.set(0, 4.6, 0);
     this.podium.add(title);
@@ -1257,7 +1370,7 @@ export class BoardScene {
 
   private tick = (time: number) => {
     this.timer.update(time);
-    const dt = Math.min(this.timer.getDelta(), MAX_DT);
+    const dt = THREE.MathUtils.clamp(this.timer.getDelta(), 0, MAX_DT);
     this.elapsed += dt;
 
     if (this.tweens.length) {
@@ -1289,6 +1402,7 @@ export class BoardScene {
       beacon.position.y = tileHeight(0) + 3.2 + Math.sin(this.elapsed * 1.5) * 0.25;
     }
 
+    this.escalator.update(dt);
     this.direct(dt);
     this.controls.update(dt);
     this.renderer.render(this.scene, this.camera);

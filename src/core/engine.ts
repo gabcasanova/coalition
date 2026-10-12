@@ -97,6 +97,8 @@ export interface GameView {
   seatsChanged(): void;
   /** A new Prime Minister walks to their seat at the end of the chamber. */
   pmTakesSeat(playerId: number): Promise<void>;
+  /** The opposition rises on its benches and its leader walks to their seat. */
+  oppositionForms(leaderId: number, memberIds: number[]): Promise<void>;
   /** A party's popularity just changed by `delta` (shown as floating numbers over its pawn). */
   popChanged(playerId: number, delta: number): void;
   /** Draw the viewer's attention to a party (e.g. the target of a scandal). */
@@ -1832,7 +1834,11 @@ export class Engine {
     this.view.seatsChanged();
     this.view.log(L(`${pn(f)} forms a government (${seats} seats). <b>Prime Minister: ${f.party.name}</b>.`, `${pn(f)} forma o governo (${seats} cadeiras). <b>Primeiro-Ministro: ${f.party.name}</b>.`), 'gov');
     await this.view.pmTakesSeat(f.id);
-    if (minority) return;
+    if (!minority) await this.announceGovernment(f, deal, seats);
+    await this.announceOpposition(seats);
+  }
+
+  private async announceGovernment(f: Player, deal: Deal, seats: number): Promise<void> {
     const ministers = this.players
       .filter((q) => q.portfolios.length)
       .map((q) => `${the(q)}: ${q.portfolios.map((pf) => PORTFOLIO_INFO[pf].short).join(', ')}`)
@@ -1848,13 +1854,35 @@ export class Engine {
     );
   }
 
+  /** Once the government is seated, the opposition forms behind its leader: the largest party left outside. */
+  private async announceOpposition(govSeats: number): Promise<void> {
+    const leader = R.oppositionLeader(this.players);
+    if (!leader) return;
+    const members = this.players.filter((q) => !q.inGov && q.seats > 0).sort((a, b) => b.seats - a.seats);
+    const others = members.filter((q) => q !== leader);
+    const oppSeats = members.reduce((s, q) => s + q.seats, 0);
+    await this.view.oppositionForms(leader.id, members.map((q) => q.id));
+    const joined = others.length
+      ? L(`, joined on the opposition benches by ${and(others.map(the))}`, `, ao lado de ${and(others.map(the))} nos bancos da oposição`)
+      : L(', alone on the opposition benches', `, ${art(leader.party) === 'a' ? 'sozinha' : 'sozinho'} nos bancos da oposição`);
+    await this.tell(
+      leader,
+      L('became the Leader of the Opposition', 'assumiu a Liderança da Oposição'),
+      L(
+        `As the largest party outside the government (${leader.seats} seats), ${the(leader)} leads the opposition${joined}. ${others.length ? 'Together they hold' : 'It holds'} <b>${oppSeats}</b> seats against the government's <b>${govSeats}</b>. Their job: block bills with vetoes, investigate the government (leaks against it hit 3 harder) and bring it down with a vote of no confidence if they ever reach ${R.MAJORITY} seats.`,
+        `Como maior partido fora do governo (${leader.seats} cadeiras), ${the(leader)} lidera a oposição${joined}. ${others.length ? 'Juntos, têm' : 'O partido tem'} <b>${oppSeats}</b> cadeiras contra <b>${govSeats}</b> do governo. A missão: barrar projetos com vetos, investigar o governo (vazamentos contra ele custam 3 a mais) e derrubá-lo com uma moção de desconfiança se um dia chegarem a ${R.MAJORITY} cadeiras.`,
+      ),
+      'event',
+    );
+  }
+
   /** Governance Score: the tiebreak between parties with the same number of election wins. */
   governance(q: Player): number {
     const s = q.stats;
     return s.pmYears * 15 + s.cabinetYears * 6 + s.billsPassed * 8 + q.seats;
   }
 
-  /** Race to win the game: most elections won, then Governance Score. */
+  /** Overall standings: most elections won, then Governance Score. */
   standings(): Player[] {
     return [...this.players].sort((a, b) => b.stats.electionWins - a.stats.electionWins || this.governance(b) - this.governance(a) || a.id - b.id);
   }

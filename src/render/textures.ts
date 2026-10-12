@@ -365,11 +365,9 @@ export function titleTexture(text: string, sub: string): THREE.CanvasTexture {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#e8c35a';
-  ctx.font = `900 120px ${FONT}`;
-  ctx.fillText(text, 512, 110);
+  fitText(ctx, text, 512, 110, 980, 120);
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = `600 36px ${FONT}`;
-  ctx.fillText(sub, 512, 205);
+  fitText(ctx, sub, 512, 205, 980, 36, 600);
   return finish(c);
 }
 
