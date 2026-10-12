@@ -28,7 +28,7 @@ const ROW_RADII = Array.from({ length: 7 }, (_, i) => 8.3 + i * 1.3);
 const ROW_HEIGHTS = ROW_RADII.map((_, i) => 0.25 + i * 0.26);
 const AISLE_GAP = 0.32;
 /** Angle left free at each end of the hemicycle for the Prime Minister's and the Opposition Leader's daises. */
-const END_GAP = 0.24;
+const END_GAP = 0.28;
 /** Leader figures are big peg people. */
 const LEADER_SCALE = 2.2;
 /** Where the overall-standings podium stands: beside the opposition benches, facing the camera side. */
@@ -122,8 +122,13 @@ export class BoardScene {
   private readonly benches = new THREE.Group();
   private readonly decks = new Map<DeckKind, { top: THREE.Vector3; inward: THREE.Vector3; color: number; back: THREE.CanvasTexture }>();
   private readonly tierMat = new THREE.MeshStandardMaterial({ color: 0x2b3446, roughness: 0.8 });
-  private plaques!: Record<'gov' | 'opp', { canvas: HTMLCanvasElement; texture: THREE.CanvasTexture }>;
+  private plaques!: Record<'gov' | 'opp', { canvas: HTMLCanvasElement; texture: THREE.CanvasTexture; group: THREE.Group }>;
   private portrait!: { canvas: HTMLCanvasElement; texture: THREE.CanvasTexture };
+  /** The portrait stands at the end of the red carpet; the spinner (frame + canvas) turns when the PM changes. */
+  private readonly portraitGroup = new THREE.Group();
+  private readonly portraitSpinner = new THREE.Group();
+  private portraitLamp!: THREE.PointLight;
+  private portraitAngle = Math.PI / 2;
   private portraitKey = '';
   private readonly marker: THREE.Mesh;
   private activeId = -1;
@@ -403,8 +408,9 @@ export class BoardScene {
 
     // LED scoreboards behind the benches: opposition on the left, government on the right.
     this.plaques = {
-      opp: this.buildPlaque((Math.PI * 128) / 180),
-      gov: this.buildPlaque((Math.PI * 52) / 180),
+      // Placed beside the PM's portrait (see placePortrait), which stands at the end of the aisle.
+      opp: this.buildPlaque(),
+      gov: this.buildPlaque(),
     };
     this.buildLeaderStation('pm');
     this.buildLeaderStation('opp');
@@ -490,15 +496,12 @@ export class BoardScene {
     return out;
   }
 
-  /** An LED board on two posts, standing behind the back row at angle `phi` and facing the chamber. */
-  private buildPlaque(phi: number): { canvas: HTMLCanvasElement; texture: THREE.CanvasTexture } {
-    const r = 18.8;
+  /** An LED board on two posts, to stand behind the back row facing the chamber (positioned by placePortrait). */
+  private buildPlaque(): { canvas: HTMLCanvasElement; texture: THREE.CanvasTexture; group: THREE.Group } {
     const W = 8;
     const H = 3.75;
     const bottom = 1.9;
     const group = new THREE.Group();
-    group.position.set(r * Math.cos(phi), 0, -r * Math.sin(phi));
-    group.lookAt(0, 0, 0);
     const metal = new THREE.MeshStandardMaterial({ color: 0x1c212b, metalness: 0.7, roughness: 0.35 });
     const frame = new THREE.Mesh(new THREE.BoxGeometry(W + 0.4, H + 0.4, 0.3), metal);
     frame.position.y = bottom + H / 2;
@@ -518,7 +521,7 @@ export class BoardScene {
     glow.position.set(0, bottom + H / 2, 1.2);
     group.add(glow);
     this.scene.add(group);
-    return { canvas, texture };
+    return { canvas, texture, group };
   }
 
   /** One labelled deck per card type, in an arc between the wheel and the track (camera side). */
@@ -853,6 +856,8 @@ export class BoardScene {
     const fromAngle = this.aisle.visible ? this.aisle.rotation.y : this.aisleAngle;
     const toAngle = this.aisleAngle;
     this.aisle.visible = showAisle;
+    const fromPortrait = this.portraitAngle;
+    const toPortrait = showAisle ? this.portraitSpot(this.aisleAngle) : Math.PI / 2;
 
     const gen = ++this.seatGen;
     const fromPos = this.seatPos.map((v) => v.clone());
@@ -871,6 +876,7 @@ export class BoardScene {
       this.seatMesh.instanceMatrix.needsUpdate = true;
       this.seatMesh.instanceColor!.needsUpdate = true;
       this.aisle.rotation.y = fromAngle + (toAngle - fromAngle) * e;
+      this.placePortrait(fromPortrait + (toPortrait - fromPortrait) * e);
     });
   }
 
@@ -886,7 +892,8 @@ export class BoardScene {
     drawLedPlaque(this.plaques.opp.canvas, L('OPPOSITION', 'OPOSIÇÃO'), leader && gov.length ? `${L('Leader', 'Líder')}: ${leader.party.name}` : L('All parties', 'Todos os partidos'), TOTAL_SEATS - govSeats, '#ff6b6b', rows(opp));
     this.plaques.gov.texture.needsUpdate = true;
     this.plaques.opp.texture.needsUpdate = true;
-    this.updatePortrait(pm);
+    // Without a government the portrait goes blank at once; a new PM's portrait is revealed once they sit down.
+    if (!pm) this.updatePortrait(undefined);
   }
 
   /** Angle of a leader's dais: the government end (right) for the PM, the opposition end (left) for its leader. */
@@ -899,9 +906,16 @@ export class BoardScene {
     return new THREE.Vector3(r * Math.cos(phi), y, -r * Math.sin(phi));
   }
 
+  /** A point in a dais's frame: `x` outward along the dais angle, `z` across it. */
+  private stationPoint(role: 'pm' | 'opp', x: number, z: number, y: number): THREE.Vector3 {
+    const phi = this.daisPhi(role);
+    return new THREE.Vector3(x * Math.cos(phi) + z * Math.sin(phi), y, -x * Math.sin(phi) + z * Math.cos(phi));
+  }
+
   /**
-   * A leader's place at the end of the chamber: a raised dais with a high-backed chair, and a lectern with a
-   * microphone facing the chamber. Built in a local frame whose +x axis points outward along the dais angle.
+   * A leader's place at the end of the chamber: a raised dais with a high-backed chair, and right in front of
+   * it a lectern with a microphone facing the chamber. Built in a local frame whose +x axis points outward
+   * along the dais angle; the dais is wide enough to walk past the lectern on either side.
    */
   private buildLeaderStation(role: 'pm' | 'opp'): void {
     const g = new THREE.Group();
@@ -917,43 +931,57 @@ export class BoardScene {
       return m;
     };
     // Dais with a step and a gold edge.
-    add(new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.36, 1.9), new THREE.MeshStandardMaterial({ color: 0x3a2a20, roughness: 0.8 })), 10.6, 0.18);
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 1.6), wood), 8.1, 0.09);
-    add(new THREE.Mesh(new THREE.BoxGeometry(4.62, 0.05, 1.92), gold), 10.6, 0.37);
+    add(new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.36, 2.5), new THREE.MeshStandardMaterial({ color: 0x3a2a20, roughness: 0.8 })), 10.6, 0.18);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 2.2), wood), 8.1, 0.09);
+    add(new THREE.Mesh(new THREE.BoxGeometry(4.62, 0.05, 2.52), gold), 10.6, 0.37);
     // High-backed chair at the back of the dais, facing the chamber.
     add(new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 1.1), wood), 12.1, 0.62);
     add(new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.14, 1.1), leather), 12.1, 0.94);
     add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.9, 1.2), leather), 12.6, 1.45);
     add(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 1.3), gold), 12.6, 2.45);
     for (const z of [-0.6, 0.6]) add(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 0.14), gold), 12.1, 1.25, z);
-    // Lectern: a tapered wooden stand with a slanted top and a name plate facing the chamber.
-    const stand = add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.55, 1.2, 4, 1), wood), 9.4, 0.96);
+    // Lectern right in front of the chair: a tapered wooden stand with a slanted top and a name plate facing the chamber.
+    const LX = 11.0;
+    const stand = add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.55, 1.2, 4, 1), wood), LX, 0.96);
     stand.rotation.y = Math.PI / 4;
-    const top = add(new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.08, 1.05), wood), 9.4, 1.6);
+    const top = add(new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.08, 1.05), wood), LX, 1.6);
     top.rotation.z = 0.28;
     const plate = new THREE.Mesh(
       new THREE.PlaneGeometry(0.95, 0.4),
       new THREE.MeshBasicMaterial({ map: nameplateTexture(role === 'pm' ? L('PRIME MINISTER', 'PRIMEIRO-MINISTRO') : L('LEADER OF THE OPPOSITION', 'LÍDER DA OPOSIÇÃO'), role === 'pm' ? '#57e389' : '#ff6b6b'), toneMapped: false }),
     );
-    plate.position.set(8.98, 1.08, 0);
+    plate.position.set(LX - 0.42, 1.08, 0);
     plate.rotation.y = -Math.PI / 2;
     g.add(plate);
-    // Gooseneck microphone, bending toward the speaker.
+    // Gooseneck microphone, bending toward the chair.
     const mic = new THREE.MeshStandardMaterial({ color: 0x15171c, metalness: 0.6, roughness: 0.35 });
-    const neck = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8), mic), 9.62, 1.9);
+    const neck = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8), mic), LX + 0.22, 1.9);
     neck.rotation.z = -0.55;
-    add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), mic), 9.78, 2.15);
-    add(new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3b30 })), 9.5, 1.68, 0.3);
+    add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), mic), LX + 0.38, 2.15);
+    add(new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3b30 })), LX + 0.1, 1.68, 0.3);
     this.scene.add(g);
   }
 
-  /** A leader's figure: a big peg person in the party colour with the party emblem above it. */
+  /** A leader's figure: a big peg person in the party colour wearing a bowtie, with the party emblem above it. Faces local +z. */
   private makeLeader(p: Player): THREE.Group {
     const g = new THREE.Group();
     const body = new THREE.Mesh(pegGeometry(), new THREE.MeshStandardMaterial({ color: p.party.color, roughness: 0.4, metalness: 0.2 }));
     body.scale.setScalar(LEADER_SCALE);
     body.castShadow = true;
     g.add(body);
+    // Bowtie at the neck: two wings pointing into a knot.
+    const silk = new THREE.MeshStandardMaterial({ color: 0x111216, roughness: 0.35 });
+    const bow = new THREE.Group();
+    for (const side of [-1, 1]) {
+      const wing = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.17, 3), silk);
+      wing.rotation.z = (side * Math.PI) / 2; // the tip points at the knot
+      wing.position.x = side * 0.085;
+      wing.scale.z = 0.5;
+      bow.add(wing);
+    }
+    bow.add(new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), silk));
+    bow.position.set(0, 0.26, 0.27);
+    g.add(bow);
     const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(p.party.short, p.party.color, p.party.icon), depthWrite: false }));
     label.scale.set(1.1, 1.03, 1);
     label.position.y = 1.75;
@@ -961,9 +989,21 @@ export class BoardScene {
     return g;
   }
 
-  /** Where a leader stands at the dais (origin of a peg sits 0.3 above the floor it stands on). */
-  private daisSpot(role: 'pm' | 'opp'): THREE.Vector3 {
-    return this.polar(11.3, this.daisPhi(role), 0.38 + 0.3 * LEADER_SCALE);
+  /** Turns a figure to face along `dir` (its bowtie side forward). */
+  private faceToward(fig: THREE.Object3D, dir: THREE.Vector3): void {
+    if (dir.x * dir.x + dir.z * dir.z > 1e-6) fig.rotation.y = Math.atan2(dir.x, dir.z);
+  }
+
+  /** Where a leader sits: in the chair, facing the chamber. */
+  private chairSpot(role: 'pm' | 'opp'): THREE.Vector3 {
+    return this.stationPoint(role, 12.05, 0, 1.01 + 0.3 * LEADER_SCALE);
+  }
+
+  /** Seats a figure in its chair, facing the chamber. */
+  private sitDown(role: 'pm' | 'opp', fig: THREE.Object3D): void {
+    fig.position.copy(this.chairSpot(role));
+    fig.rotation.set(0, 0, 0);
+    this.faceToward(fig, this.stationPoint(role, -1, 0, 0).sub(this.stationPoint(role, 0, 0, 0)));
   }
 
   /** Centre of a party's benches (after any re-seating has finished). */
@@ -985,8 +1025,9 @@ export class BoardScene {
   }
 
   /**
-   * Walks a leader from their party's benches down to the chamber floor, around the well (clear of the wheel)
-   * and up onto their dais. `camera` follows the walk when the cinematic camera is on.
+   * Walks a leader from their party's benches down to the chamber floor, around the well (clear of the wheel),
+   * up the dais steps along the side (past the lectern, not through it), then into the chair.
+   * `camera` follows the walk when the cinematic camera is on.
    */
   private async walkLeader(role: 'pm' | 'opp', p: Player, camera: boolean): Promise<void> {
     this.removeLeader(role);
@@ -995,15 +1036,18 @@ export class BoardScene {
     if (gen !== this.leaderGen[role]) return;
     const fig = this.makeLeader(p);
     const lift = 0.3 * LEADER_SCALE;
-    const end = this.daisSpot(role);
-    const start = this.benchCentre(p.id) ?? end.clone();
+    const start = this.benchCentre(p.id) ?? this.chairSpot(role);
     const startPhi = Math.atan2(-start.z, start.x);
     const endPhi = this.daisPhi(role);
+    // Walk up the side of the dais that faces away from the benches.
+    const side = role === 'pm' ? 0.95 : -0.95;
     const pts: THREE.Vector3[] = [start.clone().setY(start.y - 0.3 + lift)];
     const WELL = 7.35;
     const steps = Math.max(1, Math.ceil(Math.abs(endPhi - startPhi) / 0.15));
     for (let s = 0; s <= steps; s++) pts.push(this.polar(WELL, startPhi + ((endPhi - startPhi) * s) / steps, lift));
-    pts.push(this.polar(8.1, endPhi, 0.18 + lift), end);
+    pts.push(this.stationPoint(role, 7.6, side, lift), this.stationPoint(role, 8.1, side, 0.18 + lift), this.stationPoint(role, 8.6, side, 0.38 + lift));
+    const beside = this.stationPoint(role, 11.85, side, 0.38 + lift);
+    pts.push(beside);
     const lens = pts.slice(1).map((q, i) => q.distanceTo(pts[i]));
     const total = lens.reduce((a, b) => a + b, 0);
     const at = (d: number) => {
@@ -1011,7 +1055,7 @@ export class BoardScene {
         if (d <= lens[i] || i === lens.length - 1) return pts[i].clone().lerp(pts[i + 1], Math.min(1, d / (lens[i] || 1)));
         d -= lens[i];
       }
-      return end.clone();
+      return beside.clone();
     };
     fig.position.copy(pts[0]);
     fig.scale.setScalar(0.001);
@@ -1024,35 +1068,55 @@ export class BoardScene {
       };
     }
     await this.tween(0.35, (k) => fig.scale.setScalar(Math.max(0.001, k)));
-    const dur = THREE.MathUtils.clamp(total / 5.5, 2.2, 4.5);
+    const dur = THREE.MathUtils.clamp(total / 5.5, 2.4, 4.8);
+    const prev = new THREE.Vector3();
     await this.tween(dur, (k) => {
       if (gen !== this.leaderGen[role]) return;
       const e = easeInOut(k);
-      fig.position.copy(at(e * total));
+      prev.copy(fig.position);
+      const next = at(e * total);
+      this.faceToward(fig, next.clone().sub(prev));
+      fig.position.copy(next);
       fig.position.y += Math.abs(Math.sin(k * dur * Math.PI * 3.2)) * 0.18;
       fig.rotation.z = Math.sin(k * dur * Math.PI * 3.2) * 0.08;
     });
     if (gen !== this.leaderGen[role]) return;
-    fig.position.copy(end);
     fig.rotation.z = 0;
-    // Arrival: a proud little hop.
-    await this.tween(0.7, (k) => (fig.position.y = end.y + Math.abs(Math.sin(k * Math.PI * 2)) * 0.45));
-    fig.position.copy(end);
+    // Hop sideways into the chair, turning to face the chamber.
+    const seat = this.chairSpot(role);
+    const from = beside.clone();
+    const turnFrom = fig.rotation.y;
+    this.sitDown(role, fig);
+    const turnTo = fig.rotation.y;
+    let turn = turnTo - turnFrom;
+    turn = Math.atan2(Math.sin(turn), Math.cos(turn)); // shortest way round
+    await this.tween(0.6, (k) => {
+      const e = easeInOut(k);
+      fig.position.lerpVectors(from, seat, e);
+      fig.position.y += Math.sin(k * Math.PI) * 0.5;
+      fig.rotation.y = turnFrom + turn * e;
+    });
+    this.sitDown(role, fig);
   }
 
-  /** The new Prime Minister walks from their benches to the PM's dais (awaited by the engine). */
+  /** The new Prime Minister walks to their chair, then their official portrait is revealed (awaited by the engine). */
   async pmTakesSeat(id: number, players: Player[], instant = false): Promise<void> {
     const p = players.find((q) => q.id === id);
     if (!p) return;
-    if (instant) return this.placeLeader('pm', p);
+    if (instant) {
+      this.placeLeader('pm', p);
+      this.updatePortrait(p);
+      return;
+    }
     await this.walkLeader('pm', p, true);
-    await this.wait(0.6);
+    await this.wait(0.4);
+    await this.revealPortrait(p);
   }
 
   private placeLeader(role: 'pm' | 'opp', p: Player): void {
     this.removeLeader(role);
     const fig = this.makeLeader(p);
-    fig.position.copy(this.daisSpot(role));
+    this.sitDown(role, fig);
     this.scene.add(fig);
     this.leaders[role] = { id: p.id, fig };
   }
@@ -1061,7 +1125,10 @@ export class BoardScene {
   seatLeaders(players: Player[]): void {
     const pm = players.find((q) => q.isPM);
     const opp = oppositionLeader(players);
-    if (pm) this.placeLeader('pm', pm);
+    if (pm) {
+      this.placeLeader('pm', pm);
+      this.updatePortrait(pm);
+    }
     if (opp) this.placeLeader('opp', opp);
   }
 
@@ -1119,19 +1186,42 @@ export class BoardScene {
     else if (opp.id !== this.leaders.opp?.id && pm && this.leaders.pm?.id === pm.id) void this.walkLeader('opp', opp, false);
   }
 
-  /** The official portrait of the Prime Minister, hung behind the chamber between the two LED boards. */
+  /** Portrait angle for an aisle angle: on the carpet's line, kept far enough in that the LED boards beside it stay behind the benches. */
+  private portraitSpot(aisle: number): number {
+    return THREE.MathUtils.clamp(aisle, 0.72, Math.PI - 0.72);
+  }
+
+  /**
+   * Stands the portrait at the far end of the red carpet, at chamber angle `a`, facing down the aisle, with the
+   * LED boards right beside it: Government on the government side, Opposition on the opposition side.
+   */
+  private placePortrait(a: number): void {
+    this.portraitAngle = a;
+    const stand = (g: THREE.Object3D, r: number, phi: number) => {
+      g.position.copy(this.polar(r, phi));
+      g.lookAt(0, 0, 0);
+    };
+    stand(this.portraitGroup, 18.6, a);
+    // Half the portrait frame + half a board + a small gap, as an angle.
+    const beside = (2.45 + 4.2 + 0.4) / 18.8;
+    stand(this.plaques.gov.group, 18.8, a - beside);
+    stand(this.plaques.opp.group, 18.8, a + beside);
+  }
+
+  /** The official portrait of the Prime Minister, standing at the end of the red carpet between government and opposition. */
   private buildPortrait(): void {
     const W = 4.4;
     const H = W * 1.5;
     const bottom = 1.5;
-    const group = new THREE.Group();
-    group.position.set(0, 0, -17.6);
-    group.lookAt(0, 0, 0);
+    const group = this.portraitGroup;
     const gold = new THREE.MeshStandardMaterial({ color: 0xc9a23a, metalness: 0.85, roughness: 0.3 });
+    // The spinner holds the framed canvas and turns about its centre for the reveal.
+    const spin = this.portraitSpinner;
+    spin.position.y = bottom + H / 2;
+    group.add(spin);
     const frame = new THREE.Mesh(new THREE.BoxGeometry(W + 0.5, H + 0.5, 0.28), gold);
-    frame.position.y = bottom + H / 2;
     frame.castShadow = true;
-    group.add(frame);
+    spin.add(frame);
     for (const x of [-W / 3, W / 3]) {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, bottom, 10), new THREE.MeshStandardMaterial({ color: 0x1c212b, metalness: 0.7, roughness: 0.35 }));
       post.position.set(x, bottom / 2, -0.05);
@@ -1140,13 +1230,44 @@ export class BoardScene {
     this.portrait = portraitCanvas();
     this.portrait.texture.colorSpace = THREE.SRGBColorSpace;
     const canvasMesh = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: this.portrait.texture, toneMapped: false }));
-    canvasMesh.position.set(0, bottom + H / 2, 0.15);
-    group.add(canvasMesh);
-    const lamp = new THREE.PointLight(0xffe2a8, 10, 8, 2);
-    lamp.position.set(0, bottom + H + 0.6, 1.4);
-    group.add(lamp);
+    canvasMesh.position.z = 0.15;
+    spin.add(canvasMesh);
+    this.portraitLamp = new THREE.PointLight(0xffe2a8, 10, 8, 2);
+    this.portraitLamp.position.set(0, bottom + H + 0.6, 1.4);
+    group.add(this.portraitLamp);
     this.scene.add(group);
+    this.placePortrait(Math.PI / 2);
     this.updatePortrait(undefined);
+  }
+
+  /**
+   * The new Prime Minister's portrait: the camera turns to it, the frame spins edge-on, flashes gold and comes
+   * back round showing the new leader.
+   */
+  private async revealPortrait(pm: Player): Promise<void> {
+    const a = this.portraitAngle;
+    if (this.cinematic) {
+      const pose: Pose = { pos: this.polar(8.5, a, 6.2), target: this.polar(18.6, a, 4.6), rate: 2.4 };
+      this.shot = () => pose;
+      await this.wait(0.9);
+    }
+    const spin = this.portraitSpinner;
+    const lamp = this.portraitLamp;
+    await this.tween(0.45, (k) => {
+      spin.rotation.y = (k * k * Math.PI) / 2;
+      spin.scale.setScalar(1 + k * 0.06);
+    });
+    this.updatePortrait(pm);
+    await this.tween(0.75, (k) => {
+      const e = 1 - Math.pow(1 - k, 3);
+      spin.rotation.y = -Math.PI / 2 + (e * Math.PI) / 2; // comes back round from edge-on to face the chamber
+      spin.scale.setScalar(1.06 - 0.06 * e);
+      lamp.intensity = 10 + Math.sin(k * Math.PI) * 60;
+    });
+    spin.rotation.y = 0;
+    spin.scale.setScalar(1);
+    lamp.intensity = 10;
+    await this.wait(0.8);
   }
 
   private updatePortrait(pm: Player | undefined): void {
