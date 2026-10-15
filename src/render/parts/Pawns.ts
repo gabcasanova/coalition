@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sound } from '../../audio';
 import { BOARD_SIZE } from '../../core/rules';
 import type { PartyDef } from '../../core/types';
 import { settings } from '../../core/settings';
@@ -82,6 +83,7 @@ export class Pawns {
         await this.rideEscalator(pawn, a, b); // a new year: down from the summit
         continue;
       }
+      sound.play('hop');
       await this.stage.tween(0.26, (k) => {
         const e = easeInOut(k);
         pawn.position.lerpVectors(a, b, e);
@@ -95,12 +97,14 @@ export class Pawns {
   /** A pawn steps onto the escalator at the Election square, rides it down and steps off onto the Cabinet square. */
   private async rideEscalator(pawn: THREE.Group, from: THREE.Vector3, to: THREE.Vector3): Promise<void> {
     const escalator = this.track.escalator;
-    const hop = (a: THREE.Vector3, b: THREE.Vector3) =>
-      this.stage.tween(0.4, (k) => {
+    const hop = (a: THREE.Vector3, b: THREE.Vector3) => {
+      sound.play('hop');
+      return this.stage.tween(0.4, (k) => {
         const e = easeInOut(k);
         pawn.position.lerpVectors(a, b, e);
         pawn.position.y = a.y + (b.y - a.y) * e + Math.sin(k * Math.PI) * 0.6;
       });
+    };
     // The treads are as wide as a square, so each pawn keeps its own lane across them.
     const lane = Math.hypot(from.x, from.z) - RING_R;
     const s0 = escalator.boardS;
@@ -109,6 +113,7 @@ export class Pawns {
     // The stairs start moving to carry the pawn down (standing on a tread), and stop once it is off.
     const rideSpeed = 1.6;
     escalator.speed = rideSpeed * settings.speed;
+    sound.play('escalator', (s1 - s0) / rideSpeed / settings.speed); // the hum lasts the whole ride, in real seconds
     await this.stage.tween((s1 - s0) / rideSpeed, (k) => {
       pawn.position.copy(escalator.pointAt(s0 + (s1 - s0) * k, lane));
       pawn.rotation.z = Math.sin(k * Math.PI * 5) * 0.05;

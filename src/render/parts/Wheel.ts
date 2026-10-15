@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { THEME } from '../../assets/theme';
+import { sound } from '../../audio';
 import { easeOutCubic } from '../animation';
 import { WHEEL_R } from '../layout';
 import type { Stage } from '../Stage';
@@ -116,9 +117,15 @@ export class Wheel {
     const from = this.disc.rotation.y;
     const delta = (((base - from) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
     const to = from + delta + Math.PI * 2 * 4; // four full turns first
+    let lastWedge = Math.floor(from / wedge);
     await this.stage.tween(2.4, (k) => {
       this.disc.rotation.y = from + (to - from) * easeOutCubic(k);
+      // A tick every time a wedge passes the pointer, slowing down with the wheel.
+      const current = Math.floor(this.disc.rotation.y / wedge);
+      if (current !== lastWedge) sound.play('tick');
+      lastWedge = current;
     });
+    sound.play('wheelStop');
     await this.stage.wait(0.35);
   }
 

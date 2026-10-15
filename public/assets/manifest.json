@@ -32,5 +32,29 @@
     "pawn": null,
     "mp": null,
     "leader": null
+  },
+  "sounds": {
+    "click": null,
+    "tick": null,
+    "wheelStop": null,
+    "hop": null,
+    "escalator": null,
+    "cardDraw": null,
+    "cardDeal": null,
+    "turn": null,
+    "news": null,
+    "breaking": null,
+    "good": null,
+    "bad": null,
+    "popUp": null,
+    "popDown": null,
+    "billPassed": null,
+    "billVetoed": null,
+    "opposition": null,
+    "portrait": null,
+    "footsteps": null,
+    "drumroll": null,
+    "electionResult": null,
+    "gameOver": null
   }
 }

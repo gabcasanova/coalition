@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { THEME } from '../../assets/theme';
+import { sound } from '../../audio';
+import { settings } from '../../core/settings';
 import { benchOrder, TOTAL_SEATS } from '../../core/rules';
 import type { Player } from '../../core/types';
 import { L } from '../../i18n';
@@ -274,6 +276,7 @@ export class Chamber {
     const stagger = 0.12;
     const p = new THREE.Vector3();
 
+    sound.play('footsteps', 2.8 / settings.speed);
     await this.stage.tween(2.8, (k) => {
       movers.forEach((i, j) => {
         // Each MP sets off a little after the previous one.

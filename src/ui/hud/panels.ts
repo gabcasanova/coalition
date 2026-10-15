@@ -2,6 +2,7 @@
 import { BOARD } from '../../core/board';
 import type { Engine } from '../../core/engine';
 import * as R from '../../core/rules';
+import { sound } from '../../audio';
 import { settings } from '../../core/settings';
 import { AXIS_INFO, AXIS_KEYS, PORTFOLIO_INFO, type Player } from '../../core/types';
 import { SQUARE_META } from '../../data/squares';
@@ -44,6 +45,9 @@ export function topBarHTML(engine: Engine, viewer: Player | undefined, handOpen:
       🎥 ${cinematic ? L('Cinematic', 'Cinematográfica') : L('Free cam', 'Câmera livre')}
     </button>
     ${hand}
+    <button id="btn-sound" class="${sound.muted ? '' : 'on'}" title="${L('Sound on/off', 'Liga/desliga o som')}">
+      ${sound.muted ? '🔇' : '🔊'} ${L('Sound', 'Som')}
+    </button>
     <button id="btn-history">📜 ${L('History', 'Histórico')}</button>
     <button id="btn-help">${L('Rules', 'Regras')}</button>
     <button id="btn-new">${L('New Game', 'Novo Jogo')}</button>`;

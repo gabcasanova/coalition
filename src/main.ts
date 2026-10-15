@@ -4,6 +4,7 @@
  */
 import { loadAssets } from './assets';
 import { THEME } from './assets/theme';
+import { sound } from './audio';
 import { AIController } from './core/ai';
 import { Engine, type GameView } from './core/engine';
 import { allocateSeats, fmt } from './core/rules';
@@ -86,17 +87,23 @@ function gameView(board: BoardScene, hud: Hud, engine: () => Engine): GameView {
     pmTakesSeat: (id) => board.pmTakesSeat(id, players()),
     oppositionForms: (leaderId, ids) => board.oppositionForms(leaderId, ids, players()),
     spotlight: (id) => board.focusPawn(id, 'medium'),
-    popChanged: (id, delta) => board.floatText(id, fmt(delta), delta > 0 ? THEME.good : THEME.bad),
+    popChanged: (id, delta) => {
+      sound.play(delta > 0 ? 'popUp' : 'popDown');
+      board.floatText(id, fmt(delta), delta > 0 ? THEME.good : THEME.bad);
+    },
     electionNight: (result) => hud.electionNight(result),
-    voteReaction: (r) =>
-      board.reactVote(
+    voteReaction: (r) => {
+      sound.play(r.outcome === 'passed' ? 'billPassed' : 'billVetoed');
+      return board.reactVote(
         r.happy,
         r.sad,
         r.outcome === 'passed' ? L('✔ BILL PASSED', '✔ PROJETO APROVADO') : L('✖ BILL VETOED', '✖ PROJETO VETADO'),
         r.outcome === 'passed' ? THEME.good : THEME.bad,
-      ),
+      );
+    },
     floorCross: (from, to, n) => board.floorCross(from, to, n, players()[to].party.color),
     gameOver: (result) => {
+      sound.play('gameOver');
       board.celebrate();
       hud.gameOver(result);
     },

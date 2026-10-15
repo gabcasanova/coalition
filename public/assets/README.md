@@ -1,6 +1,6 @@
 # Replaceable art
 
-Every visual in the game has a placeholder drawn in code. To use real art instead:
+Every visual and sound in the game has a placeholder made in code. To use real art instead:
 
 1. Put the file in this folder (any sub-folder you like, e.g. `tiles/legislature.png`).
 2. In `manifest.json`, replace the `null` next to the slot with the file's path, relative to this folder:
@@ -44,6 +44,30 @@ glTF binary files (`.glb`). Every model stands with its feet at y = 0 and faces 
 | `pawn`   | A party's pawn on the board         | about 1.35           | Materials named `party` take the party colour; the emblem tag still floats above it.     |
 | `mp`     | One MP on the benches (×150)        | about 0.73           | All meshes are merged into one shape and coloured per party (the model's materials are ignored). |
 | `leader` | The Prime Minister and the Leader of the Opposition | about 1.6 | Materials named `party` take the party colour.                                            |
+
+## Sounds
+
+MP3, OGG or WAV. Every sound is synthesized in code (`src/audio/sounds.ts`) until you provide a file. Sounds that
+follow an animation are cut off when the animation ends.
+
+| Slot                                   | When it plays                                                             |
+| -------------------------------------- | ------------------------------------------------------------------------- |
+| `click`                                | Any button in the interface                                               |
+| `tick`                                 | Each number of the roulette passing the pointer (keep it very short)      |
+| `wheelStop`                            | The roulette stops                                                        |
+| `hop`                                  | A pawn hops one square                                                    |
+| `escalator`                            | A pawn rides the escalator down (about 2.5 s)                             |
+| `cardDraw`, `cardDeal`                 | A card is drawn from a deck; a card flies out during the opening deal     |
+| `turn`                                 | "Now playing" at the start of a turn                                      |
+| `news`, `breaking`, `good`, `bad`      | A news story opens: calm news, breaking news, good news, a setback        |
+| `popUp`, `popDown`                     | A party's popularity goes up or down                                      |
+| `billPassed`, `billVetoed`             | A bill becomes law (gavel and cheers) or is vetoed (buzzer and boos)      |
+| `opposition`                           | The opposition forms                                                      |
+| `portrait`                             | The new Prime Minister's portrait is revealed                             |
+| `footsteps`                            | MPs cross the floor (about 3 s)                                           |
+| `drumroll`                             | The vote count on election night (about 7 s)                              |
+| `electionResult`                       | The election winner is announced                                          |
+| `gameOver`                             | The end of the game                                                       |
 
 ## Everything else
 

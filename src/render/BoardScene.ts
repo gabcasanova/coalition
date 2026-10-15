@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { THEME } from '../assets/theme';
+import { sound } from '../audio';
 import { oppositionLeader } from '../core/rules';
 import { settings } from '../core/settings';
 import type { CardFace, DeckKind, PartyDef, Player } from '../core/types';
@@ -237,6 +238,7 @@ export class BoardScene {
       this.director.frame({ pos: new THREE.Vector3(-1, 13, 10), target: new THREE.Vector3(-9.5, 1.2, -5), rate: 2.2 });
       await this.tweens.wait(0.8);
     }
+    sound.play('opposition');
     const headline = this.showHeadline(
       L('OPPOSITION FORMED', 'OPOSIÇÃO FORMADA'),
       THEME.bad,

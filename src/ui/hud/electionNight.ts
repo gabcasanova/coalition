@@ -2,6 +2,7 @@
  * Election night, TV style: votes are counted live (ranked bars plus a line chart of each party's share as the
  * count progresses), then a table shows the new seats and who gained or lost. Resolves when the viewer continues.
  */
+import { sound } from '../../audio';
 import type { ElectionResult } from '../../core/engine';
 import * as R from '../../core/rules';
 import { paced } from '../../core/settings';
@@ -87,6 +88,7 @@ export function showElectionNight(host: HTMLElement, result: ElectionResult, pla
   const lines = rows.map((x) => host.querySelector<SVGPolylineElement>(`polyline[data-id="${x.playerId}"]`)!);
   const rowEls = rows.map((x) => host.querySelector<HTMLElement>(`.tvrow[data-id="${x.playerId}"]`)!);
   const duration = paced(COUNT_MS);
+  sound.play('drumroll', duration / 1000);
   const start = performance.now();
   let lastSample = -1;
 
@@ -126,6 +128,7 @@ export function showElectionNight(host: HTMLElement, result: ElectionResult, pla
     };
 
     const showResults = () => {
+      sound.play('electionResult');
       const wins = winner.stats.electionWins;
       const winnerName = `<b style="color:${css(winner.party.color)}">${winner.party.name}</b>`;
       const majority =

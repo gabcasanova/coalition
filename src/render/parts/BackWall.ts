@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TOTAL_SEATS } from '../../core/rules';
 import type { PartyDef, Player } from '../../core/types';
+import { sound } from '../../audio';
 import { L } from '../../i18n';
 import { easeInOut } from '../animation';
 import { polar } from '../layout';
@@ -187,6 +188,7 @@ export class BackWall {
       stage.director.frame({ pos: polar(8.5, this.angle, 6.2), target: polar(PORTRAIT_R, this.angle, 4.6), rate: 2.4 });
       await stage.wait(0.9);
     }
+    sound.play('portrait');
     await stage.tween(0.45, (k) => {
       this.spinner.rotation.y = (k * k * Math.PI) / 2;
       this.spinner.scale.setScalar(1 + k * 0.06);

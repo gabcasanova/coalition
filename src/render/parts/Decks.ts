@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sound } from '../../audio';
 import type { CardFace, DeckKind } from '../../core/types';
 import { L } from '../../i18n';
 import { easeInOut, easeOutCubic } from '../animation';
@@ -105,6 +106,7 @@ export class Decks {
     card.quaternion.copy(lyingDown);
     stage.scene.add(card);
 
+    sound.play('cardDraw');
     await stage.tween(0.4, (k) => {
       card.position.y = deck.top.y + easeOutCubic(k) * 1.5;
     });
@@ -162,6 +164,7 @@ export class Decks {
         const delay = n++ * 0.11;
         flights.push(
           stage.wait(delay).then(async () => {
+            sound.play('cardDeal');
             const card = new THREE.Mesh(geometry, material);
             card.rotation.x = -Math.PI / 2;
             card.position.copy(deck.top);

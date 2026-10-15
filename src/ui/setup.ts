@@ -1,3 +1,4 @@
+import { sound } from '../audio';
 import type { PlayerSetup } from '../core/engine';
 import { isPT, L, setLang } from '../i18n';
 import { CUSTOM_COLORS, CUSTOM_ICONS, initials, PREBUILT_PARTIES } from '../data/parties';
@@ -23,6 +24,10 @@ const CUSTOM_PRESETS: { name: string; axes: Axes }[] = [
   { name: L('Pirate Party', 'Partido Pirata'), axes: { econ: 2.5, social: 1, env: 2.5, inst: 1 } },
   { name: L('Order & Progress', 'Ordem e Progresso'), axes: { econ: 3.5, social: 3, env: 1.5, inst: 3.5 } },
 ];
+
+/** The sound on/off toggle on the title menu. */
+const soundButton = () =>
+  `<button data-sound="toggle" class="${sound.muted ? '' : 'on'}" title="${L('Sound on/off', 'Liga/desliga o som')}">${sound.muted ? '🔇' : '🔊'} ${L('Sound', 'Som')}</button>`;
 
 type Step = { kind: 'menu' } | { kind: 'count' } | { kind: 'party'; i: number } | { kind: 'confirm' };
 
@@ -101,6 +106,7 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
       <div class="langpick"><span>🌐</span>
         <button data-lang="en" class="${isPT ? '' : 'on'}">English</button>
         <button data-lang="pt" class="${isPT ? 'on' : ''}">Português (BR)</button>
+        ${soundButton()}
       </div>
       <div class="shint">${L('Five years. Fifty squares a year. 150 seats. Win 76 alone — or win the most elections.', 'Cinco anos. Cinquenta casas por ano. 150 cadeiras. Conquiste 76 sozinho — ou vença mais eleições.')}</div>
       <div class="credits">${L('Created by', 'Criado por')} <b>Gabriel Casanova</b></div>
@@ -231,6 +237,11 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
       if (!btn || btn.disabled) return;
       const d = btn.dataset;
 
+      if (d.sound) {
+        sound.muted = !sound.muted;
+        btn.outerHTML = soundButton();
+        return;
+      }
       if (d.lang) {
         if ((d.lang === 'pt') !== isPT) setLang(d.lang as 'en' | 'pt');
         return;

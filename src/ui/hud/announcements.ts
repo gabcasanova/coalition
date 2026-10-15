@@ -1,4 +1,5 @@
 /** Things that appear in the middle of the screen: news stories, the "now playing" card and banners. */
+import { sound, type SoundName } from '../../audio';
 import type { Engine, Story } from '../../core/engine';
 import { paced, sleep } from '../../core/settings';
 import type { Player, Tone } from '../../core/types';
@@ -13,6 +14,16 @@ const STORY_TAG: Record<Tone, string> = {
   good: L('GOOD NEWS', 'BOAS NOTÍCIAS'),
   info: L('TODAY', 'HOJE'),
   turn: L('TODAY', 'HOJE'),
+};
+
+/** The jingle that opens a news story, by tone. */
+const STORY_SOUND: Record<Tone, SoundName> = {
+  event: 'breaking',
+  gov: 'news',
+  bad: 'bad',
+  good: 'good',
+  info: 'news',
+  turn: 'news',
 };
 
 /**
@@ -48,6 +59,7 @@ export function showStory(host: HTMLElement, story: Story, engine: Engine): Prom
     <div class="stfoot"><button class="stnext">${L('Continue ▶', 'Continuar ▶')}</button><span>${L('or press Space', 'ou aperte Espaço')}</span></div>
   </div>`;
   host.classList.remove('hidden');
+  sound.play(STORY_SOUND[story.tone]);
 
   // Ignore input for a moment so a click meant for the previous window doesn't skip this one.
   const openedAt = performance.now();
@@ -85,6 +97,7 @@ export async function showTurnCard(host: HTMLElement, p: Player, engine: Engine)
     <div class="tcsub">${who} · ${L('Year', 'Ano')} ${engine.year}</div>
   </div>`;
   host.classList.remove('hidden');
+  sound.play('turn');
   await sleep(paced(p.isAI ? 1900 : 1400));
   host.classList.add('hidden');
 }

@@ -1,4 +1,5 @@
 import type { ElectionResult, Engine, GameResult, Story } from '../../core/engine';
+import { sound } from '../../audio';
 import { settings } from '../../core/settings';
 import type { Player, Prompt, Tone } from '../../core/types';
 import { L } from '../../i18n';
@@ -54,7 +55,10 @@ export class Hud {
         this.renderTop();
       } else if (button.id === 'btn-help') showHelp(this.el.help);
       else if (button.id === 'btn-history') this.history.show();
-      else if (button.id === 'btn-hand') {
+      else if (button.id === 'btn-sound') {
+        sound.muted = !sound.muted;
+        this.renderTop();
+      } else if (button.id === 'btn-hand') {
         this.handOpen = !this.handOpen;
         this.refresh();
       } else if (button.id === 'btn-cam' && this.onToggleCamera) {

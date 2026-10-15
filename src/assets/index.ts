@@ -5,6 +5,8 @@
  * in `public/assets/` and point to it from `public/assets/manifest.json`. Any slot left as `null` (or missing)
  * keeps the placeholder. See `public/assets/README.md` for sizes and conventions.
  *
+ * Sounds work the same way (the "sounds" section of the manifest); see src/audio.
+ *
  * `loadAssets()` runs once at startup, before the 3D scene is built; after that the getters below are synchronous.
  */
 import * as THREE from 'three';
@@ -23,12 +25,15 @@ interface Manifest {
   /** Party emblems by party key (see `key` in src/data/parties.ts). */
   emblems?: Record<string, string | null>;
   models?: Partial<Record<ModelSlot, string | null>>;
+  /** Sound effects by name (see SoundName in src/audio/sounds.ts). */
+  sounds?: Record<string, string | null>;
 }
 
 const BASE = `${import.meta.env.BASE_URL}assets/`;
 const images = new Map<string, HTMLImageElement>();
 const emblems = new Map<string, HTMLImageElement>();
 const models = new Map<ModelSlot, THREE.Group>();
+const sounds = new Map<string, ArrayBuffer>();
 
 function loadImage(file: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -75,6 +80,17 @@ export async function loadAssets(): Promise<void> {
         gltf.loadAsync(BASE + file).then((m) => void models.set(slot, m.scene)),
       );
   }
+  for (const [name, file] of Object.entries(manifest.sounds ?? {})) {
+    if (!file) continue;
+    const load = fetch(BASE + file).then((res) => {
+      if (!res.ok) throw new Error(`Could not load asset ${file}`);
+      return res.arrayBuffer();
+    });
+    tryLoad(
+      `sound ${name}`,
+      load.then((data) => void sounds.set(name, data)),
+    );
+  }
   await Promise.all(jobs);
 }
 
@@ -87,3 +103,6 @@ export const emblemImage = (partyKey: string | undefined): HTMLImageElement | un
 
 /** A fresh copy of a model, if one was provided. */
 export const model = (slot: ModelSlot): THREE.Group | undefined => models.get(slot)?.clone(true);
+
+/** The raw bytes of a replacement sound file, if one was provided (decoded by src/audio). */
+export const soundFile = (name: string): ArrayBuffer | undefined => sounds.get(name);
