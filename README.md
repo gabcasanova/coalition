@@ -22,6 +22,12 @@ Open http://localhost:5173, pick the number of players, then a party (prebuilt o
 | `npm run format`       | Format the code with Prettier                 |
 | `npm run format:check` | Check the formatting without changing files   |
 
+## Publishing
+
+Every push to `main` builds the game and publishes it to GitHub Pages at https://gabcasanova.github.io/coalition/ (workflow: [.github/workflows/deploy.yml](.github/workflows/deploy.yml)). The site is served from `/coalition/`, which is set as `base` in `vite.config.ts`; `npm run preview` serves the build the same way, at http://localhost:4173/coalition/.
+
+One-time setup on GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+
 ## How it plays
 
 - **Board**: a 50-square ring that climbs like a spiral staircase from square 1 up to the Parliamentary Election at the summit; one lap is one year, and the match lasts 5 years. A roulette wheel (1–10) moves your pawn, and an escalator carries it back down from the Election square at the start of each year.
