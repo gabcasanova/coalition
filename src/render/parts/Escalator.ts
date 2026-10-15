@@ -56,7 +56,10 @@ export class Escalator {
       const h = Math.min(this.heightAt(s0), this.heightAt(s1)) - (underLanding ? 0.06 : STEP_H + riser + 0.06);
       const k = (s0 + s1) / 2 / this.length;
       const color = top.clone().lerp(bottom, k).multiplyScalar(0.55);
-      const seg = new THREE.Mesh(new THREE.BoxGeometry(s1 - s0 + 0.01, h, width), new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+      const seg = new THREE.Mesh(
+        new THREE.BoxGeometry(s1 - s0 + 0.01, h, width),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.6 }),
+      );
       this.place(seg, (s0 + s1) / 2, 0, 0.06 + h / 2);
       seg.castShadow = seg.receiveShadow = true;
       this.group.add(seg);
@@ -84,7 +87,10 @@ export class Escalator {
         const s = (i / 40) * this.length;
         pts.push(this.at(s, lateral, this.heightAt(s) + 0.5));
       }
-      const rail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.035, 6, false), rodMat);
+      const rail = new THREE.Mesh(
+        new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.035, 6, false),
+        rodMat,
+      );
       rail.castShadow = true;
       this.group.add(rail);
       for (let s = 0.05; s <= this.length; s += 0.75) {

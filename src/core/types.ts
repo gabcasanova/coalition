@@ -1,17 +1,35 @@
-import { L } from './i18n';
+import { L } from '../i18n';
 export type AxisKey = 'econ' | 'social' | 'env' | 'inst';
 /** Each axis runs 1..4 (low pole → high pole). 2.5 is "balanced". */
 export type Axes = Record<AxisKey, number>;
 export const AXIS_KEYS: readonly AxisKey[] = ['econ', 'social', 'env', 'inst'];
 
 export const AXIS_INFO: Record<AxisKey, { name: string; low: string; high: string }> = {
-  econ: { name: L('Economic', 'Econômico'), low: L('Interventionism', 'Intervencionismo'), high: L('Neoliberalism', 'Neoliberalismo') },
-  social: { name: L('Social', 'Social'), low: L('Social Progressivism', 'Progressismo Social'), high: L('Social Conservatism', 'Conservadorismo Social') },
-  env: { name: L('Environmental', 'Ambiental'), low: L('Developmentalism', 'Desenvolvimentismo'), high: L('Ecologism', 'Ecologismo') },
-  inst: { name: L('Institutional', 'Institucional'), low: L('Direct Democracy', 'Democracia Direta'), high: L('Centralism', 'Centralismo') },
+  econ: {
+    name: L('Economic', 'Econômico'),
+    low: L('Interventionism', 'Intervencionismo'),
+    high: L('Neoliberalism', 'Neoliberalismo'),
+  },
+  social: {
+    name: L('Social', 'Social'),
+    low: L('Social Progressivism', 'Progressismo Social'),
+    high: L('Social Conservatism', 'Conservadorismo Social'),
+  },
+  env: {
+    name: L('Environmental', 'Ambiental'),
+    low: L('Developmentalism', 'Desenvolvimentismo'),
+    high: L('Ecologism', 'Ecologismo'),
+  },
+  inst: {
+    name: L('Institutional', 'Institucional'),
+    low: L('Direct Democracy', 'Democracia Direta'),
+    high: L('Centralism', 'Centralismo'),
+  },
 };
 
 export interface PartyDef {
+  /** Stable id of a prebuilt party (used for its emblem art in public/assets); custom parties have none. */
+  key?: string;
   name: string;
   short: string;
   /** Party emblem (an emoji), shown on panels, pawns and news. */
@@ -30,7 +48,10 @@ export const PORTFOLIO_INFO: Record<Portfolio, { title: string; short: string; i
     title: L('Minister of Economy', 'Ministério da Economia'),
     short: L('Economy', 'Economia'),
     icon: '💰',
-    perk: L('+1 ⭐ on every capital income, +1 ⭐ on Media squares and a 2 ⭐ budget each year', '+1 ⭐ em toda renda de capital, +1 ⭐ nas casas de Mídia e um orçamento de 2 ⭐ por ano'),
+    perk: L(
+      '+1 ⭐ on every capital income, +1 ⭐ on Media squares and a 2 ⭐ budget each year',
+      '+1 ⭐ em toda renda de capital, +1 ⭐ nas casas de Mídia e um orçamento de 2 ⭐ por ano',
+    ),
   },
   information: {
     title: L('Minister of Information', 'Ministério da Comunicação'),
@@ -48,7 +69,10 @@ export const PORTFOLIO_INFO: Record<Portfolio, { title: string; short: string; i
     title: L('Minister of Interior', 'Ministério do Interior'),
     short: L('Interior', 'Interior'),
     icon: '🛡️',
-    perk: L('Controls committee investigations (cheaper, stronger); scandal damage halved', 'Controla as investigações das comissões (mais baratas e fortes); dano de escândalos pela metade'),
+    perk: L(
+      'Controls committee investigations (cheaper, stronger); scandal damage halved',
+      'Controla as investigações das comissões (mais baratas e fortes); dano de escândalos pela metade',
+    ),
   },
 };
 
@@ -101,15 +125,7 @@ export interface Player {
 }
 
 export type SquareType =
-  | 'election'
-  | 'formation'
-  | 'midterm'
-  | 'debate'
-  | 'legislature'
-  | 'media'
-  | 'crisis'
-  | 'lobby'
-  | 'committee';
+  'election' | 'formation' | 'midterm' | 'debate' | 'legislature' | 'media' | 'crisis' | 'lobby' | 'committee';
 
 export type Tone = 'info' | 'good' | 'bad' | 'event' | 'gov' | 'turn';
 
@@ -161,4 +177,59 @@ export interface Prompt {
 /** Anything that can make decisions for a player: a human UI or an AI. */
 export interface Controller {
   choose(prompt: Prompt): Promise<number>;
+}
+
+// ───────────── event cards (content lives in src/data) ─────────────
+
+/** A paid response to a popularity hit. */
+export interface Mitigation {
+  label: string;
+  /** Cost in ⭐ Political Capital. */
+  cost?: number;
+  /** Multiplier applied to the loss (0 = negate, 0.5 = halve). */
+  lossMult?: number;
+  /** Alternatively cap the loss at this amount. */
+  reduceTo?: number;
+  /** Popularity gained instead of the loss. */
+  gain?: number;
+}
+
+/** A crisis card: a global midterm crisis (hits everyone) or a local crisis (hits the party that drew it). */
+export interface EventDef {
+  key: string;
+  name: string;
+  flavor: string;
+  tags: string[];
+  /** What the card does, told as a short narrative. */
+  text: string;
+  /** Cards with their own rules instead of a popularity hit. */
+  special?: 'floorcross';
+  /** Popularity change for this player before defenses (negative = loss). */
+  delta: (p: Player) => number;
+  options?: Mitigation[];
+}
+
+/** Drawn when a player lands on a Media square: a press opportunity with two ways to use it. */
+export interface MediaDef {
+  key: string;
+  name: string;
+  flavor: string;
+  /** Press conference: draw this many STRATEGY cards and keep one. */
+  draw: number;
+  /** Campaign rally: cost in ⭐ capital and popularity gained. */
+  rallyCost: number;
+  rallyGain: number;
+}
+
+/** Drawn when a player lands on a Lobby square: an interest group offering ⭐ capital. */
+export interface LobbyDef {
+  key: string;
+  name: string;
+  flavor: string;
+  axis: AxisKey;
+  side: 'low' | 'high';
+  /** ⭐ Political Capital offered to parties that share the cause. */
+  capital: number;
+  /** Popularity lost by a party that takes the money against its own base. */
+  penalty: number;
 }

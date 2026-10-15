@@ -1,0 +1,265 @@
+/* Election night: the TV broadcast with the live count. */
+
+/* ───────────── Election night: TV broadcast ───────────── */
+#tvnight {
+  position: absolute;
+  inset: 0;
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(2, 4, 8, 0.72);
+}
+.tv {
+  width: min(1100px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  border-radius: 14px;
+  overflow-x: hidden;
+  background: linear-gradient(180deg, #0b1830, #070d1a 60%);
+  border: 2px solid #1d3a6b;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.7);
+  animation: tvon 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+@keyframes tvon {
+  from {
+    transform: scaleY(0.02) scaleX(0.6);
+    opacity: 0.4;
+    filter: brightness(3);
+  }
+}
+.tvtop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(90deg, #c4121c, #7a0b12 55%, #0b1830);
+}
+.tvbreak {
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: #fff1;
+  padding: 2px 10px;
+  border-radius: 4px;
+  animation: blink 1.2s infinite;
+}
+.tvlive {
+  font-weight: 900;
+  font-size: 12px;
+  color: #fff;
+  background: #e1252f;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.tvtitle {
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #fff;
+}
+.tvcount {
+  margin-left: auto;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: #cfe0ff;
+}
+.tvcount b {
+  font-size: 22px;
+  color: #fff;
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.tvheadline {
+  min-height: 46px;
+  padding: 10px 18px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  border-bottom: 1px solid #1d3a6b;
+}
+.tvmain {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 14px;
+  padding: 14px 16px;
+}
+.tvpanel {
+  background: #0e1d3a;
+  border: 1px solid #1d3a6b;
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+.tvlabel {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: #7fa6e6;
+  margin-bottom: 8px;
+}
+.tvbars {
+  position: relative;
+}
+.tvrow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: top 0.45s ease;
+}
+.tvname {
+  width: 78px;
+  font-weight: 800;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.tvbar {
+  flex: 1;
+  height: 26px;
+  background: #ffffff10;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.tvbar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 70%, #000), var(--pc));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--pc) 60%, transparent);
+}
+.tvval {
+  width: 58px;
+  text-align: right;
+  font-weight: 900;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.tvchart {
+  width: 100%;
+  height: 240px;
+  display: block;
+}
+.tvchart .grid {
+  stroke: #ffffff18;
+  stroke-width: 1;
+}
+.tvchart .gl {
+  fill: #7fa6e6;
+  font-size: 12px;
+}
+.tvchart polyline {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
+}
+.tvseats {
+  margin: 0 16px 10px;
+  padding: 10px 12px;
+  background: #0e1d3a;
+  border: 1px solid #1d3a6b;
+  border-radius: 10px;
+  animation: rise 0.4s ease-out;
+}
+.tvsr {
+  display: grid;
+  grid-template-columns: 1.4fr 1.6fr 1fr 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-left: 5px solid var(--pc);
+  border-radius: 6px;
+  background: #ffffff08;
+  margin-top: 6px;
+}
+.tvsname {
+  font-weight: 800;
+}
+.tvscalc {
+  font-size: 12.5px;
+  color: #9fb6dc;
+  font-variant-numeric: tabular-nums;
+}
+.tvsseats b {
+  font-size: 22px;
+}
+.tvsseats small {
+  color: #9fb6dc;
+}
+.chg {
+  justify-self: end;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 3px 9px;
+  border-radius: 6px;
+}
+.chg.up {
+  background: #1e7a46;
+  color: #d6ffe6;
+}
+.chg.down {
+  background: #8c1d22;
+  color: #ffe0e0;
+}
+.chg.same {
+  background: #ffffff14;
+  color: #c9d1de;
+}
+.tvfoot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 16px 14px;
+}
+.tvformula {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b9c9e6;
+}
+.tvfoot .opt {
+  flex: 0 0 auto;
+}
+.tvticker {
+  height: 30px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  background: #c4121c;
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.tvtrack {
+  display: inline-block;
+  padding-left: 100%;
+  animation: tvcrawl 22s linear infinite;
+}
+@keyframes tvcrawl {
+  to {
+    transform: translateX(-100%);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@media (max-width: 760px) {
+  .tvmain {
+    grid-template-columns: 1fr;
+  }
+  .tvsr {
+    grid-template-columns: 1fr 1fr;
+  }
+  .tvfoot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

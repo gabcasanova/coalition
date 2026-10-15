@@ -1,7 +1,8 @@
 import type { PlayerSetup } from '../core/engine';
-import { isPT, L, setLang } from '../core/i18n';
-import { CUSTOM_COLORS, CUSTOM_ICONS, initials, PREBUILT_PARTIES } from '../core/parties';
+import { isPT, L, setLang } from '../i18n';
+import { CUSTOM_COLORS, CUSTOM_ICONS, initials, PREBUILT_PARTIES } from '../data/parties';
 import { poleName } from '../core/rules';
+import { emblem } from './hud/html';
 import { AXIS_INFO, AXIS_KEYS, type Axes, type AxisKey, type PartyDef } from '../core/types';
 
 const css = (c: number) => '#' + c.toString(16).padStart(6, '0');
@@ -42,19 +43,34 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
   let backToConfirm = false;
   const slots: Slot[] = Array.from({ length: 6 }, (_, i) => {
     const preset = CUSTOM_PRESETS[i % CUSTOM_PRESETS.length];
-    return { isAI: i !== 0, choice: i < PREBUILT_PARTIES.length ? i : -1, name: preset.name, color: CUSTOM_COLORS[i], icon: CUSTOM_ICONS[i], axes: { ...preset.axes } };
+    return {
+      isAI: i !== 0,
+      choice: i < PREBUILT_PARTIES.length ? i : -1,
+      name: preset.name,
+      color: CUSTOM_COLORS[i],
+      icon: CUSTOM_ICONS[i],
+      axes: { ...preset.axes },
+    };
   });
 
   const partyOf = (s: Slot): PartyDef =>
     s.choice >= 0
       ? PREBUILT_PARTIES[s.choice]
-      : { name: s.name.trim() || L('Custom Party', 'Partido Personalizado'), short: initials(s.name), icon: s.icon, tagline: L('Custom party', 'Partido personalizado'), color: s.color, axes: { ...s.axes } };
+      : {
+          name: s.name.trim() || L('Custom Party', 'Partido Personalizado'),
+          short: initials(s.name),
+          icon: s.icon,
+          tagline: L('Custom party', 'Partido personalizado'),
+          color: s.color,
+          axes: { ...s.axes },
+        };
 
   /**
    * Which player already picked prebuilt party `j` (-1 if none). Only earlier players have picked so far;
    * when editing from the summary, every other player's pick counts.
    */
-  const takenBy = (j: number, i: number) => slots.slice(0, count).findIndex((s, k) => k !== i && s.choice === j && (k < i || backToConfirm));
+  const takenBy = (j: number, i: number) =>
+    slots.slice(0, count).findIndex((s, k) => k !== i && s.choice === j && (k < i || backToConfirm));
 
   /** Make sure player `i` doesn't hold a party someone already picked. */
   const ensureFree = (i: number) => {
@@ -63,7 +79,8 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
     s.choice = PREBUILT_PARTIES.findIndex((_, j) => takenBy(j, i) < 0);
   };
 
-  const axesSummary = (a: Axes) => AXIS_KEYS.map((k) => `<span class="chip" title="${AXIS_INFO[k].name}">${poleName(k, a[k])}</span>`).join('');
+  const axesSummary = (a: Axes) =>
+    AXIS_KEYS.map((k) => `<span class="chip" title="${AXIS_INFO[k].name}">${poleName(k, a[k])}</span>`).join('');
 
   const steps = () => {
     const at = step.kind === 'count' ? 0 : step.kind === 'party' ? 1 : 2;
@@ -119,7 +136,7 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
       const by = takenBy(j, i);
       const taken = by >= 0;
       return `<button class="pcardpick ${s.choice === j ? 'on' : ''}" data-pick="${j}" ${taken ? 'disabled' : ''} style="--pc:${css(pp.color)}">
-          <span class="pkicon">${pp.icon}</span>
+          <span class="pkicon">${emblem(pp)}</span>
           <span class="pkname">${pp.name}</span>
           <span class="pktag">${pp.tagline}</span>
           <span class="chips">${axesSummary(pp.axes)}</span>
@@ -134,7 +151,7 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
     return `<div class="setupbox" style="--pc:${css(cur.color)}">
       ${header(true)}${steps()}
       <div class="wplayer">
-        <div class="wpemblem">${cur.icon}</div>
+        <div class="wpemblem">${emblem(cur)}</div>
         <div class="wpinfo">
           <div class="wpnum">${L('Player', 'Jogador')} ${i + 1} ${L('of', 'de')} ${count}</div>
           <div class="wpname">${cur.name}</div>
@@ -158,7 +175,7 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
       .map((s, i) => {
         const p = partyOf(s);
         return `<div class="crow2" style="--pc:${css(p.color)}">
-          <span class="cpn">P${i + 1}</span><span class="cicon">${p.icon}</span>
+          <span class="cpn">P${i + 1}</span><span class="cicon">${emblem(p)}</span>
           <span class="cinfo"><b>${esc(p.name)}</b><small>${p.tagline}</small></span>
           <span class="cwho">${s.isAI ? `🤖 ${L('Computer', 'Computador')}` : `🧑 ${L('Human', 'Humano')}`}</span>
           <button class="cedit" data-edit="${i}">✏️ ${L('Change', 'Alterar')}</button>
@@ -172,8 +189,14 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
       <div class="confirmlist">${rows}</div>
       <div class="whint">${
         humans
-          ? L(`${humans} human player${humans > 1 ? 's' : ''} · ${count - humans} computer`, `${humans} ${humans > 1 ? 'jogadores humanos' : 'jogador humano'} · ${count - humans} computador`)
-          : L('No human players: you will watch the computer play.', 'Nenhum jogador humano: você vai assistir o computador jogar.')
+          ? L(
+              `${humans} human player${humans > 1 ? 's' : ''} · ${count - humans} computer`,
+              `${humans} ${humans > 1 ? 'jogadores humanos' : 'jogador humano'} · ${count - humans} computador`,
+            )
+          : L(
+              'No human players: you will watch the computer play.',
+              'Nenhum jogador humano: você vai assistir o computador jogar.',
+            )
       }</div>
       <div class="serr" id="serr"></div>
       <div class="wnav"><button class="wback" data-nav="back">◀ ${L('Back', 'Voltar')}</button><button class="start" data-nav="start">${L('Start the Campaign', 'Começar a Campanha')} ▶</button></div>
@@ -182,7 +205,13 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
 
   const render = () => {
     root.innerHTML =
-      step.kind === 'menu' ? menuHTML() : step.kind === 'count' ? countHTML() : step.kind === 'party' ? partyHTML(step.i) : confirmHTML();
+      step.kind === 'menu'
+        ? menuHTML()
+        : step.kind === 'count'
+          ? countHTML()
+          : step.kind === 'party'
+            ? partyHTML(step.i)
+            : confirmHTML();
   };
 
   const go = (next: Step) => {
@@ -262,7 +291,10 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
         const chosen = slots.slice(0, count);
         const picks = chosen.filter((s) => s.choice >= 0).map((s) => s.choice);
         if (new Set(picks).size !== picks.length) {
-          document.getElementById('serr')!.textContent = L('Each prebuilt party can only be chosen once.', 'Cada partido pronto só pode ser escolhido uma vez.');
+          document.getElementById('serr')!.textContent = L(
+            'Each prebuilt party can only be chosen once.',
+            'Cada partido pronto só pode ser escolhido uma vez.',
+          );
           return;
         }
         root.classList.add('hidden');

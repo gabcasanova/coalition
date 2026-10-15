@@ -1,0 +1,36 @@
+{
+  "images": {
+    "tile.election": null,
+    "tile.formation": null,
+    "tile.midterm": null,
+    "tile.debate": null,
+    "tile.legislature": null,
+    "tile.media": null,
+    "tile.crisis": null,
+    "tile.lobby": null,
+    "tile.committee": null,
+    "deck.law": null,
+    "deck.media": null,
+    "deck.strategy": null,
+    "deck.lobby": null,
+    "deck.crisis": null,
+    "deck.global": null,
+    "wheel": null,
+    "table.wood": null,
+    "table.felt": null,
+    "portrait.leader": null
+  },
+  "emblems": {
+    "national-union": null,
+    "democratic-labour": null,
+    "citizens": null,
+    "socialist-workers": null,
+    "communist": null,
+    "alliance": null
+  },
+  "models": {
+    "pawn": null,
+    "mp": null,
+    "leader": null
+  }
+}

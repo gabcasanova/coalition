@@ -1,0 +1,56 @@
+/* Colours, fonts and page basics. The colour variables are used everywhere in the interface. */
+
+:root {
+  --bg: #0a0e16;
+  --panel: rgba(14, 19, 30, 0.86);
+  --panel-solid: #121826;
+  --line: rgba(255, 255, 255, 0.09);
+  --text: #e8ecf3;
+  --muted: #94a0b4;
+  --gold: #e8c35a;
+  --good: #4cd185;
+  --bad: #ff6b6b;
+  --event: #ffb547;
+  --gov: #c9a7ff;
+  --radius: 12px;
+  font-family:
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    Roboto,
+    sans-serif;
+  color: var(--text);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+#scene,
+#scene canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.hidden {
+  display: none !important;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+b {
+  font-weight: 700;
+}

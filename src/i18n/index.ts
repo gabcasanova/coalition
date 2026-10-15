@@ -1,4 +1,4 @@
-import type { PartyDef } from './types';
+import type { PartyDef } from '../core/types';
 
 /** Supported languages: English and Brazilian Portuguese. */
 export type Lang = 'en' | 'pt';

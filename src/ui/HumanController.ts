@@ -1,5 +1,5 @@
 import type { Controller, Prompt } from '../core/types';
-import type { Hud } from './hud';
+import type { Hud } from './hud/Hud';
 
 /** Routes decisions to the on-screen prompt UI. */
 export class HumanController implements Controller {

@@ -1,6 +1,7 @@
 /**
- * Brazilian Portuguese content. Applied over the English data at startup when the language is 'pt'
- * (see the `isPT` blocks in cards.ts, events.ts, board.ts and parties.ts).
+ * Brazilian Portuguese game content. The English text lives in src/data; when the language is 'pt' each data
+ * file swaps in these translations at startup (see the `isPT` block at the end of each file).
+ * Interface text (buttons, news stories) is translated inline with L(english, portuguese).
  */
 
 /** Cards by key: [name, text]. */
@@ -82,7 +83,10 @@ export const CARDS_PT: Record<string, [string, string]> = {
   gag: ['Mordaça Judicial', 'Cancela totalmente um escândalo ou caso de corrupção.'],
   bailout: ['Socorro de Emergência', 'Pague ⭐ capital em vez de perder popularidade (1 de capital a cada 2 pontos).'],
   damage: ['Controle de Danos', 'Reduz pela metade qualquer perda de popularidade.'],
-  noconf: ['Moção de Desconfiança', 'Só a oposição, numa casa de Comissão: se a oposição tiver 76+ cadeiras, o governo cai.'],
+  noconf: [
+    'Moção de Desconfiança',
+    'Só a oposição, numa casa de Comissão: se a oposição tiver 76+ cadeiras, o governo cai.',
+  ],
 };
 
 export const KIND_PT = {
@@ -229,8 +233,14 @@ export const EVENTS_PT: Record<string, { name: string; flavor: string; text: str
 };
 
 export const MEDIA_PT: Record<string, { name: string; flavor: string }> = {
-  primetime: { name: 'Entrevista no Horário Nobre', flavor: 'O principal âncora do país quer uma hora com o seu líder.' },
-  morning: { name: 'Programa Matinal', flavor: 'Um sofá aconchegante, um apresentador simpático e milhões de espectadores com café.' },
+  primetime: {
+    name: 'Entrevista no Horário Nobre',
+    flavor: 'O principal âncora do país quer uma hora com o seu líder.',
+  },
+  morning: {
+    name: 'Programa Matinal',
+    flavor: 'Um sofá aconchegante, um apresentador simpático e milhões de espectadores com café.',
+  },
   townhall: { name: 'Sabatina Televisionada', flavor: 'Cidadãos comuns fazem as perguntas, ao vivo.' },
   viral: { name: 'Campanha Viral nas Redes', flavor: 'Sua equipe digital tem um meme pronto para soltar.' },
   oped: { name: 'Artigo de Opinião', flavor: 'Um grande jornal oferece uma coluna ao seu líder.' },
@@ -243,10 +253,16 @@ export const LOBBIES_PT: Record<string, { name: string; flavor: string }> = {
   agro: { name: 'Federação do Agronegócio', flavor: 'O agro oferece apoio de campanha em troca de votos.' },
   unions: { name: 'Central Sindical', flavor: 'Os sindicatos vão mobilizar suas bases — por um preço.' },
   chamber: { name: 'Confederação da Indústria', flavor: 'Os capitães da indústria querem um amigo no parlamento.' },
-  religious: { name: 'Conselho Religioso', flavor: 'Líderes religiosos oferecem seus púlpitos a um partido simpático.' },
+  religious: {
+    name: 'Conselho Religioso',
+    flavor: 'Líderes religiosos oferecem seus púlpitos a um partido simpático.',
+  },
   green: { name: 'ONGs da Aliança Verde', flavor: 'Grupos ambientais oferecem voluntários e uma lista de doadores.' },
   tech: { name: 'Associação de Startups', flavor: 'Jovens fundadores querem uma sociedade moderna e aberta.' },
-  assemblies: { name: 'Rede de Assembleias Cidadãs', flavor: 'Democratas de base oferecem um exército de cabos eleitorais.' },
+  assemblies: {
+    name: 'Rede de Assembleias Cidadãs',
+    flavor: 'Democratas de base oferecem um exército de cabos eleitorais.',
+  },
   security: { name: 'Conselho de Segurança e Defesa', flavor: 'Generais e delegados buscam uma mão firme.' },
   banks: { name: 'Federação dos Bancos', flavor: 'Os bancos gostariam de conversar sobre regulação.' },
   students: { name: 'União Nacional dos Estudantes', flavor: 'Os estudantes oferecem energia, memes e panfletagem.' },
@@ -259,21 +275,41 @@ export const SQUARES_PT: Record<string, { name: string; short: string; desc: str
     short: 'ELEIÇÃO',
     desc: 'O ano termina aqui. Todos os partidos param nesta casa e esperam; quando o último chega, o país vota e a popularidade vira as 150 cadeiras do parlamento.',
   },
-  formation: { name: 'Formação de Governo', short: 'GABINETE', desc: 'Reunião do gabinete. Partidos do governo ganham +2 ⭐ de capital; partidos da oposição compram uma carta.' },
+  formation: {
+    name: 'Formação de Governo',
+    short: 'GABINETE',
+    desc: 'Reunião do gabinete. Partidos do governo ganham +2 ⭐ de capital; partidos da oposição compram uma carta.',
+  },
   midterm: {
     name: 'Convenção de Meio de Mandato',
     short: 'CONVENÇÃO',
     desc: 'O primeiro partido a chegar aqui no ano revela uma Crise Global que atinge todos os partidos. Parar exatamente aqui: convenção do partido, +4 de popularidade e +2 ⭐.',
   },
-  debate: { name: 'Debate Nacional', short: 'DEBATE', desc: 'Desafie um rival para um debate na TV sobre um eixo. Quem estiver mais perto do Humor do Eleitorado ganha +6 de popularidade; quem perde cai 3.' },
+  debate: {
+    name: 'Debate Nacional',
+    short: 'DEBATE',
+    desc: 'Desafie um rival para um debate na TV sobre um eixo. Quem estiver mais perto do Humor do Eleitorado ganha +6 de popularidade; quem perde cai 3.',
+  },
   legislature: {
     name: 'Votação no Plenário',
     short: 'LEI',
     desc: 'Obrigatório: apresente um Projeto de Lei da sua mão. Projetos alinhados ganham +5 a +15 de popularidade se virarem lei; desalinhados custam 5 a 15. Depois o parlamento vota.',
   },
-  media: { name: 'Mídia e Campanha', short: 'MÍDIA', desc: 'Faça uma coletiva de imprensa (compre cartas e fique com 1) ou transforme a ocasião num comício (pago em ⭐ capital, por popularidade).' },
-  crisis: { name: 'Crise Nacional', short: 'CRISE', desc: 'Compre um evento de crise. Ideologia, cartas de reação e ⭐ capital podem amortecer o golpe.' },
-  lobby: { name: 'Lobistas e Facções', short: 'LOBBY', desc: 'Um grupo de interesse oferece apoio. Partidos alinhados ganham ⭐ capital; os demais recusam ou arriscam a revolta dos eleitores.' },
+  media: {
+    name: 'Mídia e Campanha',
+    short: 'MÍDIA',
+    desc: 'Faça uma coletiva de imprensa (compre cartas e fique com 1) ou transforme a ocasião num comício (pago em ⭐ capital, por popularidade).',
+  },
+  crisis: {
+    name: 'Crise Nacional',
+    short: 'CRISE',
+    desc: 'Compre um evento de crise. Ideologia, cartas de reação e ⭐ capital podem amortecer o golpe.',
+  },
+  lobby: {
+    name: 'Lobistas e Facções',
+    short: 'LOBBY',
+    desc: 'Um grupo de interesse oferece apoio. Partidos alinhados ganham ⭐ capital; os demais recusam ou arriscam a revolta dos eleitores.',
+  },
   committee: {
     name: 'Comissão Parlamentar',
     short: 'CPI',
@@ -284,9 +320,19 @@ export const SQUARES_PT: Record<string, { name: string; short: string; desc: str
 /** Prebuilt parties by short code. */
 export const PARTIES_PT: Record<string, { name: string; short?: string; tagline: string; article: 'o' | 'a' }> = {
   NU: { name: 'União Nacional', short: 'UN', tagline: 'Centro-Direita · Liberal-Conservador', article: 'a' },
-  DLP: { name: 'Partido Democrático-Trabalhista', short: 'PDT', tagline: 'Centro-Esquerda · Social-Democrata', article: 'o' },
+  DLP: {
+    name: 'Partido Democrático-Trabalhista',
+    short: 'PDT',
+    tagline: 'Centro-Esquerda · Social-Democrata',
+    article: 'o',
+  },
   CP: { name: 'Partido dos Cidadãos', short: 'PC', tagline: 'Centro · Liberal', article: 'o' },
-  SWP: { name: 'Partido Socialista dos Trabalhadores', short: 'PST', tagline: 'Extrema Esquerda · Socialista-Marxista', article: 'o' },
-  PCO: { name: 'Partido Comunista', short: 'PCO', tagline: 'Extrema Esquerda · Marxista-Leninista', article: 'o' },
+  SWP: {
+    name: 'Partido Socialista dos Trabalhadores',
+    short: 'PST',
+    tagline: 'Esquerda Radical · Socialista-Marxista',
+    article: 'o',
+  },
+  PCO: { name: 'Partido Comunista', short: 'PCO', tagline: 'Esquerda Radical · Marxista-Leninista', article: 'o' },
   AfC: { name: 'Aliança pelo País', short: 'AP', tagline: 'Extrema Direita · Nacional-Conservador', article: 'a' },
 };

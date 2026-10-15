@@ -1,34 +1,12 @@
-import { isPT } from './i18n';
-import { EVENTS_PT, LOBBIES_PT, MEDIA_PT } from './locale_pt';
-import { lean } from './rules';
-import type { AxisKey, Player } from './types';
-
-/** A paid response to a popularity hit. */
-export interface Mitigation {
-  label: string;
-  /** Cost in ⭐ Political Capital. */
-  cost?: number;
-  /** Multiplier applied to the loss (0 = negate, 0.5 = halve). */
-  lossMult?: number;
-  /** Alternatively cap the loss at this amount. */
-  reduceTo?: number;
-  /** Popularity gained instead of the loss. */
-  gain?: number;
-}
-
-export interface EventDef {
-  key: string;
-  name: string;
-  flavor: string;
-  tags: string[];
-  /** What the card does, told as a short narrative. */
-  text: string;
-  /** Cards with their own rules instead of a popularity hit. */
-  special?: 'floorcross';
-  /** Popularity change for this player before defenses (negative = loss). */
-  delta: (p: Player) => number;
-  options?: Mitigation[];
-}
+/**
+ * Crisis cards. GLOBAL_CRISES are revealed when the first party reaches the Midterm Convention and hit every
+ * party; CRISIS_EVENTS are drawn on Crisis squares and hit only the party that landed there.
+ * Each card's `delta` decides the popularity change from the party's position on the ideology axes.
+ */
+import { lean } from '../core/rules';
+import type { AxisKey, EventDef, Player } from '../core/types';
+import { isPT } from '../i18n';
+import { EVENTS_PT } from '../i18n/pt-BR';
 
 /** Multiplier depending on which pole of an axis the party leans to. */
 function m(p: Player, k: AxisKey, lowMult: number, highMult: number): number {
@@ -271,53 +249,6 @@ export const CRISIS_EVENTS: EventDef[] = [
   },
 ];
 
-/** Drawn when a player lands on a Media square: a press opportunity with two ways to use it. */
-export interface MediaDef {
-  key: string;
-  name: string;
-  flavor: string;
-  /** Press conference: draw this many STRATEGY cards and keep one. */
-  draw: number;
-  /** Campaign rally: cost in ⭐ capital and popularity gained. */
-  rallyCost: number;
-  rallyGain: number;
-}
-
-export const MEDIA_EVENTS: MediaDef[] = [
-  { key: 'primetime', name: 'Prime-Time Interview', flavor: 'The country’s top anchor wants an hour with your leader.', draw: 2, rallyCost: 3, rallyGain: 4 },
-  { key: 'morning', name: 'Morning Talk Show', flavor: 'A cosy sofa, a friendly host, millions of viewers with coffee.', draw: 2, rallyCost: 2, rallyGain: 3 },
-  { key: 'townhall', name: 'Televised Town Hall', flavor: 'Ordinary citizens ask the questions, live.', draw: 2, rallyCost: 4, rallyGain: 6 },
-  { key: 'viral', name: 'Viral Social Campaign', flavor: 'Your digital team has a meme ready to go.', draw: 3, rallyCost: 3, rallyGain: 4 },
-  { key: 'oped', name: 'Newspaper Op-Ed', flavor: 'A national paper offers your leader a column.', draw: 2, rallyCost: 0, rallyGain: 2 },
-  { key: 'podcast', name: 'Celebrity Podcast', flavor: 'Three hours with the nation’s most famous comedian.', draw: 2, rallyCost: 5, rallyGain: 7 },
-  { key: 'watchparty', name: 'Debate Watch Party', flavor: 'Supporters gather in bars across the country.', draw: 2, rallyCost: 2, rallyGain: 4 },
-  { key: 'radio', name: 'Regional Radio Tour', flavor: 'Twelve stations, twelve towns, one long day.', draw: 3, rallyCost: 2, rallyGain: 3 },
-];
-
-export interface LobbyDef {
-  key: string;
-  name: string;
-  flavor: string;
-  axis: AxisKey;
-  side: 'low' | 'high';
-  /** ⭐ Political Capital offered to parties that share the cause. */
-  capital: number;
-  penalty: number;
-}
-
-export const LOBBIES: LobbyDef[] = [
-  { key: 'agro', name: 'Agribusiness Federation', flavor: 'The agricultural lobby offers campaign backing in exchange for votes.', axis: 'env', side: 'low', capital: 7, penalty: 8 },
-  { key: 'unions', name: 'Trade Union Congress', flavor: 'The unions will mobilise their members — for a price.', axis: 'econ', side: 'low', capital: 7, penalty: 7 },
-  { key: 'chamber', name: 'Industrial Chamber', flavor: 'Captains of industry want a friend in parliament.', axis: 'econ', side: 'high', capital: 8, penalty: 7 },
-  { key: 'religious', name: 'Religious Council', flavor: 'Church leaders offer their pulpits to a sympathetic party.', axis: 'social', side: 'high', capital: 6, penalty: 8 },
-  { key: 'green', name: 'Green Alliance NGOs', flavor: 'Environmental groups offer volunteers and a donor list.', axis: 'env', side: 'high', capital: 6, penalty: 6 },
-  { key: 'tech', name: 'Tech & Startups Association', flavor: 'Young founders want a modern, open society.', axis: 'social', side: 'low', capital: 7, penalty: 5 },
-  { key: 'assemblies', name: 'Citizens’ Assemblies Network', flavor: 'Grassroots democrats offer an army of canvassers.', axis: 'inst', side: 'low', capital: 6, penalty: 5 },
-  { key: 'security', name: 'Security & Defense Council', flavor: 'Generals and police chiefs seek a strong hand.', axis: 'inst', side: 'high', capital: 7, penalty: 6 },
-  { key: 'banks', name: 'Banking Federation', flavor: 'The banks would like a word about regulation.', axis: 'econ', side: 'high', capital: 8, penalty: 9 },
-  { key: 'students', name: 'National Students’ Union', flavor: 'Students offer energy, memes and door-knocking.', axis: 'social', side: 'low', capital: 4, penalty: 4 },
-];
-
 // Brazilian Portuguese: replace the card text (rules stay the same).
 if (isPT) {
   for (const e of [...GLOBAL_CRISES, ...CRISIS_EVENTS]) {
@@ -326,6 +257,4 @@ if (isPT) {
     Object.assign(e, { name: t.name, flavor: t.flavor, text: t.text });
     t.options?.forEach((label, i) => e.options?.[i] && (e.options[i].label = label));
   }
-  for (const m of MEDIA_EVENTS) Object.assign(m, MEDIA_PT[m.key] ?? {});
-  for (const l of LOBBIES) Object.assign(l, LOBBIES_PT[l.key] ?? {});
 }

@@ -1,0 +1,61 @@
+/* Small screens (loaded last so these rules win). */
+
+/* ───────────── Small screens ───────────── */
+@media (max-width: 1100px) {
+  .mood {
+    display: none;
+  }
+  #players {
+    width: 255px;
+  }
+}
+@media (max-width: 760px) {
+  #topbar {
+    gap: 10px;
+    font-size: 13px;
+  }
+  .turn,
+  #btn-new {
+    display: none;
+  }
+  #seatbar {
+    width: calc(100vw - 24px);
+  }
+  #players {
+    top: 150px;
+    flex-direction: row;
+    width: auto;
+    right: 12px;
+    overflow-x: auto;
+    max-height: none;
+  }
+  .pcard {
+    min-width: 200px;
+  }
+  #nowplaying {
+    top: 104px;
+    padding: 4px 14px;
+  }
+  .npname {
+    font-size: 19px;
+  }
+  .stbody {
+    flex-direction: column;
+    padding: 16px;
+  }
+  .stside {
+    width: auto;
+  }
+  .sthl {
+    font-size: 21px;
+  }
+  .stmeans {
+    font-size: 15px;
+  }
+  .net {
+    display: none;
+  }
+  .tc {
+    padding: 20px 26px;
+  }
+}

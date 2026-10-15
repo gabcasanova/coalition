@@ -1,0 +1,347 @@
+/* Decisions for human players: dialogs, the action bar, cards with their choices, the opening hand, the wheel. */
+
+/* ───────────── Prompts ───────────── */
+#modal,
+#help {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 70px 16px 16px;
+  background: rgba(4, 6, 10, 0.45);
+  z-index: 30;
+}
+#help {
+  z-index: 40;
+}
+.pr {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+.pdialog {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  padding: 18px 20px;
+  border-top: 4px solid var(--pc, var(--gold));
+}
+.prwho {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--pc, var(--gold));
+  font-weight: 700;
+}
+.prtitle {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 2px 0 10px;
+}
+.prbody {
+  color: #cdd5e1;
+  margin: 8px 0 12px;
+  line-height: 1.5;
+}
+.prbody p {
+  margin-bottom: 8px;
+}
+.prcard {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0;
+}
+.opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.opts.withcards {
+  justify-content: center;
+}
+.opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 1 1 200px;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  transition:
+    background 0.15s,
+    transform 0.15s;
+}
+.opt.colored {
+  border-left: 4px solid var(--oc);
+}
+.opt:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.13);
+  transform: translateY(-1px);
+}
+.opt.primary {
+  background: linear-gradient(180deg, #f5d57a, #c99a28);
+  color: #1a1406;
+  border-color: transparent;
+}
+.opt.primary .od {
+  color: #3d2e08;
+}
+.opt:disabled,
+.optcard:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.ol {
+  font-weight: 700;
+}
+.od {
+  font-size: 12px;
+  color: var(--muted);
+}
+.dis {
+  font-size: 11px;
+  color: var(--bad);
+}
+.optcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 12px;
+  transition: transform 0.15s;
+}
+.optcard:hover:not(:disabled) {
+  transform: translateY(-4px);
+}
+.optcard:hover:not(:disabled) .card {
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 10px 24px rgba(0, 0, 0, 0.5);
+}
+.oclabel {
+  display: none;
+}
+
+#actionbar {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 16px;
+  z-index: 25;
+  width: min(720px, calc(100vw - 24px));
+}
+.pbar {
+  padding: 10px 14px;
+  border-top: 3px solid var(--pc);
+}
+.pbar .prtitle {
+  font-size: 16px;
+  margin: 0 0 4px;
+}
+.pbar .prbody {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.pbar .opt {
+  flex: 1 1 150px;
+  padding: 8px 12px;
+}
+
+/* Explained choices inside a prompt (e.g. what a veto will / won't do) */
+.prbody ul.choices {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.prbody ul.choices li {
+  line-height: 1.45;
+}
+
+/* ───────────── Card prompt: the drawn card with its choices as buttons ───────────── */
+.cardprompt {
+  --cc: var(--event);
+  width: min(560px, 100%);
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  padding: 0;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--cc) 55%, #10141d);
+  border: 2px solid color-mix(in srgb, var(--cc) 70%, #fff 10%);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65);
+  animation: cardin 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.cardprompt.t-bad {
+  --cc: var(--bad);
+}
+.cardprompt.t-good {
+  --cc: var(--good);
+}
+.cardprompt.t-info {
+  --cc: #4d7cff;
+}
+.cardprompt.t-gov {
+  --cc: var(--gov);
+}
+.cplabel {
+  text-align: center;
+  padding: 10px 16px 8px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.cpinner {
+  margin: 0 10px 10px;
+  padding: 18px 22px 20px;
+  border-radius: 12px;
+  background: #f7f3ea;
+  color: #14161c;
+  text-align: center;
+}
+.cpwho {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pc);
+}
+.cptitle {
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 4px 0 10px;
+}
+.cpflav {
+  font-style: italic;
+  color: #4a4f5c;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 4px solid var(--cc);
+}
+.cptext {
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+.cpbody {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #2a2f3a;
+  text-align: left;
+}
+.cpbody b {
+  color: #000;
+}
+.cpq {
+  margin: 16px 0 8px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6b7080;
+}
+.cpopts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cpopt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 2px solid color-mix(in srgb, var(--cc) 60%, #000 10%);
+  background: #fff;
+  color: #14161c;
+  transition:
+    transform 0.15s,
+    background 0.15s;
+}
+.cpopt.colored {
+  border-left: 8px solid var(--oc);
+}
+.cpopt:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--cc) 18%, #fff);
+  transform: translateY(-2px);
+}
+.cpopt:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.cpopt .ol {
+  font-weight: 800;
+  font-size: 16px;
+}
+.cpopt .od {
+  font-size: 13px;
+  color: #555b68;
+}
+.cpopt .dis {
+  font-size: 12px;
+  color: #c0302b;
+}
+@keyframes cardin {
+  from {
+    opacity: 0;
+    transform: rotateY(70deg) scale(0.8);
+  }
+}
+.evtext {
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+/* ───────────── Opening hand ───────────── */
+.openinghand {
+  width: min(1000px, 100%);
+}
+.dealhand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 6px 0 16px;
+}
+.dealt {
+  animation: dealin 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
+}
+.dealt .card {
+  width: 128px;
+  min-height: 172px;
+}
+@keyframes dealin {
+  from {
+    opacity: 0;
+    transform: translateY(-120px) rotate(-14deg) scale(0.6);
+  }
+}
+
+/* ───────────── Click-the-wheel prompt ───────────── */
+.spinhint .spincta {
+  font-size: 18px;
+  padding: 8px 0 4px;
+  animation: nudge 1.4s ease-in-out infinite;
+}
+.spinhint .spincta b {
+  color: var(--gold);
+}
+.spinhint .spincta span {
+  font-size: 12px;
+  color: var(--muted);
+}

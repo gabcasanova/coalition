@@ -1,9 +1,12 @@
-import { isPT } from './i18n';
-import { PARTIES_PT } from './locale_pt';
-import type { PartyDef } from './types';
+import type { PartyDef } from '../core/types';
+import { isPT } from '../i18n';
+import { PARTIES_PT } from '../i18n/pt-BR';
+
+/** The prebuilt parties offered on the setup screen. Axes run 1..4 (see AXIS_INFO in core/types.ts). */
 
 export const PREBUILT_PARTIES: PartyDef[] = [
   {
+    key: 'national-union',
     name: 'National Union',
     short: 'NU',
     icon: '🦅',
@@ -12,6 +15,7 @@ export const PREBUILT_PARTIES: PartyDef[] = [
     axes: { econ: 3, social: 3, env: 2, inst: 3 },
   },
   {
+    key: 'democratic-labour',
     name: 'Democratic-Labour Party',
     short: 'DLP',
     icon: '🌹',
@@ -20,6 +24,7 @@ export const PREBUILT_PARTIES: PartyDef[] = [
     axes: { econ: 2, social: 2, env: 3, inst: 2 },
   },
   {
+    key: 'citizens',
     name: "Citizens' Party",
     short: 'CP',
     icon: '🗽',
@@ -28,22 +33,25 @@ export const PREBUILT_PARTIES: PartyDef[] = [
     axes: { econ: 3, social: 2, env: 2.5, inst: 2 },
   },
   {
+    key: 'socialist-workers',
     name: "Socialist Worker's Party",
     short: 'SWP',
     icon: '✊',
-    tagline: 'Far-Left · Socialist-Marxist',
+    tagline: 'Radical Left · Socialist-Marxist',
     color: 0xc62828,
     axes: { econ: 1, social: 2, env: 1, inst: 1 },
   },
   {
+    key: 'communist',
     name: 'Communist Party',
     short: 'PCO',
     icon: '☭',
-    tagline: 'Far-Left · Marxist-Leninist',
+    tagline: 'Radical Left · Marxist-Leninist',
     color: 0x8b0d1e,
     axes: { econ: 1, social: 2.5, env: 1.5, inst: 4 },
   },
   {
+    key: 'alliance',
     name: 'Alliance for the Country',
     short: 'AfC',
     icon: '🦁',
