@@ -18,7 +18,7 @@ export const SQUARE_META: Record<SquareType, SquareMeta> = {
     short: 'ELECTION',
     icon: '🗳️',
     color: 0xd9a514,
-    desc: 'The year ends here. Every party stops on this square and waits; when the last party arrives, the nation votes and popularity converts into the 150 seats of parliament.',
+    desc: 'The year ends here. Every party stops on this square and waits; when the last party arrives, the nation votes and the 24 districts elect the 150 seats of parliament.',
   },
   formation: {
     name: 'Government Formation',
@@ -76,6 +76,20 @@ export const SQUARE_META: Record<SquareType, SquareMeta> = {
     color: 0xb8890f,
     desc: 'Draft a report (+2 ⭐), leak a scandal card against a rival, launch an investigation (3 ⭐) or, in opposition, call a vote of no confidence.',
   },
+  advance: {
+    name: 'Fast Track',
+    short: 'FAST TRACK',
+    icon: '⏩',
+    color: 0x1597a8,
+    desc: 'Your bills sail through the bureaucracy: move forward 3 squares and play the square you land on.',
+  },
+  retreat: {
+    name: 'Red Tape',
+    short: 'RED TAPE',
+    icon: '⏪',
+    color: 0x8a5a3c,
+    desc: 'Lost in paperwork: move back 3 squares and play the square you land on (never back past the Cabinet square).',
+  },
 };
 
 if (isPT) for (const [k, t] of Object.entries(SQUARES_PT)) Object.assign(SQUARE_META[k as SquareType], t);
@@ -90,9 +104,11 @@ export const ANCHORS: Record<number, SquareType> = {
 
 /** How many of each regular square the board has (spread as evenly as possible around the ring). */
 export const SQUARE_QUOTAS: [SquareType, number][] = [
-  ['legislature', 18],
-  ['media', 9],
+  ['legislature', 17],
+  ['media', 8],
   ['crisis', 6],
-  ['lobby', 7],
-  ['committee', 6],
+  ['lobby', 6],
+  ['committee', 5],
+  ['advance', 2],
+  ['retreat', 2],
 ];

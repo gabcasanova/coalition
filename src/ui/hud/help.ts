@@ -26,7 +26,7 @@ export function showHelp(host: HTMLElement): void {
 const RULES_EN = `
   <p>Lead your party through <b>5 years</b> of politics. Each lap of the 50-square board is one year, climbing toward the
   Parliamentary Election at the summit. Spin the roulette (1–10) to move.</p>
-  <p><b>Popularity</b> converts into the 150 seats of parliament at each election. <b>⭐ Political Capital</b> is your one currency:
+  <p><b>Popularity</b> wins you votes, and votes win seats in 24 electoral districts (150 seats in all, shared out in each district by the D'Hondt method). Like a real parliament it distorts: big parties get a seat bonus, regional strongholds pay off, and rural votes weigh more. <b>⭐ Political Capital</b> is your one currency:
   you earn it from lobbies, cabinet posts, committee reports and passing laws, and spend it on rallies, vetoes, whip votes, investigations and crisis fixes.</p>
   <p><b>Win</b> by taking 76+ seats alone in an election, or by <b>winning the most elections</b> (most seats each year) over 5 years.
   Ties are broken by the <b>Governance Score</b> (PM years ×15, cabinet years ×6, laws passed ×8, plus final seats).
@@ -38,7 +38,7 @@ const RULES_EN = `
 const RULES_PT = `
   <p>Conduza seu partido por <b>5 anos</b> de política. Cada volta no tabuleiro de 50 casas é um ano, subindo rumo à
   Eleição Parlamentar no topo. Gire a roleta (1–10) para andar.</p>
-  <p>A <b>popularidade</b> vira as 150 cadeiras do parlamento em cada eleição. O <b>⭐ Capital Político</b> é sua única moeda:
+  <p>A <b>popularidade</b> rende votos, e os votos conquistam cadeiras em 24 distritos eleitorais (150 cadeiras no total, divididas em cada distrito pelo método D'Hondt). Como num parlamento de verdade, há distorções: os grandes partidos ganham um bônus de cadeiras, redutos regionais fazem diferença e o voto rural pesa mais. O <b>⭐ Capital Político</b> é sua única moeda:
   você ganha com lobbies, ministérios, relatórios de comissão e leis aprovadas, e gasta em comícios, vetos, pressão na bancada, investigações e crises.</p>
   <p><b>Vença</b> conquistando 76+ cadeiras sozinho numa eleição, ou <b>vencendo mais eleições</b> (mais cadeiras a cada ano) ao longo de 5 anos.
   Empates são decididos pela <b>Pontuação de Governo</b> (anos como PM ×15, anos no gabinete ×6, leis aprovadas ×8, mais as cadeiras finais).

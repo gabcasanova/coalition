@@ -270,10 +270,20 @@ export const LOBBIES_PT: Record<string, { name: string; flavor: string }> = {
 
 /** Board squares: name, big label, description. */
 export const SQUARES_PT: Record<string, { name: string; short: string; desc: string }> = {
+  advance: {
+    name: 'Via Rápida',
+    short: 'AVANCE',
+    desc: 'Seus projetos atravessam a burocracia: avance 3 casas e jogue a casa onde parar.',
+  },
+  retreat: {
+    name: 'Burocracia',
+    short: 'BUROCRACIA',
+    desc: 'Perdido na papelada: volte 3 casas e jogue a casa onde parar (nunca antes da casa do Gabinete).',
+  },
   election: {
     name: 'Eleição Parlamentar',
     short: 'ELEIÇÃO',
-    desc: 'O ano termina aqui. Todos os partidos param nesta casa e esperam; quando o último chega, o país vota e a popularidade vira as 150 cadeiras do parlamento.',
+    desc: 'O ano termina aqui. Todos os partidos param nesta casa e esperam; quando o último chega, o país vota e os 24 distritos elegem as 150 cadeiras do parlamento.',
   },
   formation: {
     name: 'Formação de Governo',

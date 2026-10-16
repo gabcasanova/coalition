@@ -25,6 +25,7 @@ import { formGovernment } from './government';
 import { legislature } from './legislature';
 import { lobby } from './lobby';
 import { media } from './media';
+import { shortcut } from './shortcut';
 import type { GameResult, GameView, PlayerSetup, ScoreRow, Story } from './view';
 
 export interface MenuEntry {
@@ -203,6 +204,15 @@ export class Engine {
     return false;
   }
 
+  /** Moves a pawn back `steps` squares (never behind square 1: the year can't be undone). */
+  async moveBack(p: Player, steps: number): Promise<void> {
+    const back = Math.min(steps, p.position - 1);
+    if (back <= 0) return;
+    await this.view.movePawn(p.id, p.position, -back);
+    p.position -= back;
+    this.view.refresh();
+  }
+
   /** A party reaches the Election square: it waits there; when the last party arrives, the nation votes. */
   async arriveAtElection(p: Player): Promise<void> {
     p.waiting = true;
@@ -236,10 +246,16 @@ export class Engine {
     this.view.refresh();
   }
 
-  async resolveSquare(p: Player): Promise<void> {
+  /** Plays the square a party stands on. `viaShortcut`: it got here from a Fast Track / Red Tape square. */
+  async resolveSquare(p: Player, viaShortcut = false): Promise<void> {
     const type = BOARD[p.position];
     this.view.flashTile(p.position);
     switch (type) {
+      case 'advance':
+      case 'retreat':
+        // Shortcuts don't chain: landing on one from another just ends the move there.
+        if (!viaShortcut) await shortcut(this, p, type === 'advance' ? 3 : -3);
+        break;
       case 'formation':
         if (p.inGov) {
           this.gainCapital(p, 2);

@@ -1,5 +1,6 @@
 /** The general election at the end of each year: popularity becomes seats, then a new year begins. */
 import { L } from '../../i18n';
+import { runElection } from '../electoral';
 import * as R from '../rules';
 import { AXIS_KEYS, type Player } from '../types';
 import type { Engine } from './Engine';
@@ -36,11 +37,10 @@ export async function election(game: Engine, trigger: Player): Promise<void> {
     mood.set(q, b ? game.gainPop(q, b) : 0);
   }
 
-  // Vote share = a party's popularity ÷ everyone's popularity; seats = share × 150 (largest remainder).
-  const totalPop = game.players.reduce((s, q) => s + Math.max(q.popularity, 0.01), 0);
+  // Seats are won district by district (see core/electoral.ts).
   const before = game.players.map((q) => q.seats);
-  const seats = R.allocateSeats(game.players.map((q) => Math.max(q.popularity, 0.01)));
-  game.players.forEach((q, i) => (q.seats = seats[i]));
+  const vote = runElection(game.players.map((q) => ({ axes: q.party.axes, popularity: q.popularity })));
+  game.players.forEach((q, i) => (q.seats = vote.seats[i]));
   const yearWinner = [...game.players].sort(
     (a, b) => b.seats - a.seats || b.popularity - a.popularity || a.id - b.id,
   )[0];
@@ -49,11 +49,11 @@ export async function election(game: Engine, trigger: Player): Promise<void> {
     year: game.electionsHeld,
     final: game.electionsHeld >= R.YEARS,
     winnerId: yearWinner.id,
-    totalPopularity: totalPop,
+    districts: vote.districts,
     rows: game.players.map((q, i) => ({
       playerId: q.id,
       popularity: q.popularity,
-      share: (Math.max(q.popularity, 0.01) / totalPop) * 100,
+      share: vote.voteShare[i],
       seatsBefore: before[i],
       seatsAfter: q.seats,
       moodBonus: mood.get(q) ?? 0,

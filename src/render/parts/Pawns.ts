@@ -70,16 +70,20 @@ export class Pawns {
     if (pawn) this.stage.director.followFromOutside(pawn, kind);
   }
 
-  /** Hops a pawn `steps` squares forward, one square at a time; from square 0 it rides the escalator down. */
+  /**
+   * Hops a pawn `steps` squares, one square at a time: forward, or backward for negative steps. Going forward
+   * from square 0 it rides the escalator down.
+   */
   async move(id: number, from: number, steps: number): Promise<void> {
     const pawn = this.pawns.get(id);
     if (!pawn) return;
     this.focus(id, 'follow');
     await this.stage.wait(0.45);
-    for (let s = 1; s <= steps; s++) {
-      const a = this.track.spot((from + s - 1) % BOARD_SIZE, id);
-      const b = this.track.spot((from + s) % BOARD_SIZE, id);
-      if ((from + s - 1) % BOARD_SIZE === 0) {
+    const dir = Math.sign(steps);
+    for (let s = 1; s <= Math.abs(steps); s++) {
+      const a = this.track.spot((from + dir * (s - 1) + BOARD_SIZE) % BOARD_SIZE, id);
+      const b = this.track.spot((from + dir * s + BOARD_SIZE) % BOARD_SIZE, id);
+      if (dir > 0 && (from + s - 1) % BOARD_SIZE === 0) {
         await this.rideEscalator(pawn, a, b); // a new year: down from the summit
         continue;
       }

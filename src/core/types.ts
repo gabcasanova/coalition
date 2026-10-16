@@ -125,7 +125,17 @@ export interface Player {
 }
 
 export type SquareType =
-  'election' | 'formation' | 'midterm' | 'debate' | 'legislature' | 'media' | 'crisis' | 'lobby' | 'committee';
+  | 'election'
+  | 'formation'
+  | 'midterm'
+  | 'debate'
+  | 'legislature'
+  | 'media'
+  | 'crisis'
+  | 'lobby'
+  | 'committee'
+  | 'advance'
+  | 'retreat';
 
 export type Tone = 'info' | 'good' | 'bad' | 'event' | 'gov' | 'turn';
 

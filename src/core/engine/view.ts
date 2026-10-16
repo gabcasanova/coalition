@@ -1,4 +1,5 @@
 /** What the engine exchanges with the presentation layer (3D scene + HUD). */
+import type { DistrictResult } from '../electoral';
 import {
   type Card,
   type CardFace,
@@ -27,7 +28,7 @@ export interface ScoreRow {
 export interface ElectionRow {
   playerId: number;
   popularity: number;
-  /** Vote share in percent: popularity ÷ total popularity. */
+  /** National vote share in percent (all districts together). */
   share: number;
   seatsBefore: number;
   seatsAfter: number;
@@ -40,8 +41,9 @@ export interface ElectionResult {
   final: boolean;
   /** Party with the most seats: it wins this year's election. */
   winnerId: number;
-  totalPopularity: number;
   rows: ElectionRow[];
+  /** Results district by district (for the election-night map). */
+  districts: DistrictResult[];
 }
 
 export interface GameResult {
@@ -78,6 +80,7 @@ export interface GameView {
   spin(result: number): Promise<void>;
   /** Animate the player drawing a card from a deck; `face` reveals it to everyone, omitted = private draw. */
   drawCard(deck: DeckKind, playerId: number, face?: CardFace): Promise<void>;
+  /** Hop a pawn square by square; negative `steps` move it backwards. */
   movePawn(playerId: number, from: number, steps: number): Promise<void>;
   flashTile(index: number): void;
   banner(title: string, text: string, tone?: Tone): Promise<void>;

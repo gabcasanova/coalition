@@ -12,7 +12,7 @@
   background: rgba(2, 4, 8, 0.72);
 }
 .tv {
-  width: min(1100px, 100%);
+  width: min(1320px, 100%);
   max-height: calc(100vh - 32px);
   overflow-y: auto;
   border-radius: 14px;
@@ -261,5 +261,62 @@
   .tvfoot {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+/* Election-night map of the districts */
+.tvmappanel {
+  display: flex;
+  flex-direction: column;
+}
+.tvmapwrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tvmap {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  cursor: crosshair;
+  image-rendering: auto;
+}
+.tvmaptip {
+  position: absolute;
+  z-index: 2;
+  min-width: 170px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  background: rgba(6, 12, 24, 0.95);
+  border: 1px solid #1d3a6b;
+  pointer-events: none;
+}
+.tvscalc .bonus {
+  font-weight: 800;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+.tvscalc .bonus.up {
+  color: var(--good);
+}
+.tvscalc .bonus.down {
+  color: var(--bad);
+}
+@media (min-width: 761px) {
+  .tvmain {
+    grid-template-columns: 0.85fr 1.35fr 1fr;
+  }
+}
+@media (min-width: 761px) and (max-width: 1050px) {
+  .tvmain {
+    grid-template-columns: 1fr 1fr;
+  }
+  .tvmappanel {
+    grid-column: 1 / -1;
+    order: -1;
   }
 }

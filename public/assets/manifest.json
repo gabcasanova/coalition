@@ -9,6 +9,8 @@
     "tile.crisis": null,
     "tile.lobby": null,
     "tile.committee": null,
+    "tile.advance": null,
+    "tile.retreat": null,
     "deck.law": null,
     "deck.media": null,
     "deck.strategy": null,

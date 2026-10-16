@@ -32,9 +32,9 @@ One-time setup on GitHub: **Settings → Pages → Build and deployment → Sour
 
 - **Board**: a 50-square ring that climbs like a spiral staircase from square 1 up to the Parliamentary Election at the summit; one lap is one year, and the match lasts 5 years. A roulette wheel (1–10) moves your pawn, and an escalator carries it back down from the Election square at the start of each year.
 - **Presentation**: a cinematic camera cuts between the wheel, the moving pawn, the decks and the parliament. Drag to look around; the director resumes after a few seconds, or switch to 🎥 Free cam. Everything that happens is told as a news story in the middle of the screen.
-- **Squares**: 18 Legislature, 9 Media, 6 Crisis, 7 Lobby, 6 Committee, plus four anchors: Election (0), Government Formation (1), Midterm Convention (25) and National Debate (37).
+- **Squares**: 17 Legislature, 8 Media, 6 Crisis, 6 Lobby, 5 Committee, 2 Fast Track (move forward 3) and 2 Red Tape (move back 3), plus four anchors: Election (0), Government Formation (1), Midterm Convention (25) and National Debate (37).
 - **Currencies**: Popularity (becomes seats) and ⭐ Political Capital, earned from lobbies, cabinet posts and passing laws, and spent on rallies, vetoes, whips, investigations and crisis fixes.
-- **Elections**: parties stop at the Election square and wait; when the last one arrives, the election is held. The 150 seats are split in proportion to popularity (largest remainder). 76 seats alone wins the game outright.
+- **Elections**: parties stop at the Election square and wait; when the last one arrives, the election is held. The country has 24 districts electing 2 to 20 MPs each (150 in all), shared out by the D'Hondt method. A party's vote in a district depends on its national popularity and on how well it fits the district's leaning, so seats follow votes only roughly: big parties get a bonus, strongholds pay off and rural votes weigh more. Election night shows the count live on a map of the districts. 76 seats alone wins the game outright.
 - **Government formation**: the largest party gets the mandate and offers cabinet portfolios (Economy, Information, Environment, Interior) plus optional ⭐ capital to build a 76-seat coalition. If it fails, the mandate passes on. If nobody succeeds, the largest party forms a minority government. The largest party outside the government leads the opposition.
 - **Legislature**: playing a bill is mandatory. Bills that become law win their party +5 to +15 popularity if they match its ideology; misaligned bills cause a −5 to −15 backlash either way. Parties vote by ideology, and coalition partners back the PM. Whip cards or ⭐ capital force votes. Opponents can spend ⭐ capital to veto.
 - **Defense layers** against crises and scandals: ideological shield → reaction cards → spending ⭐ capital → cabinet privileges.
@@ -55,6 +55,7 @@ src/
   i18n/              Language: L(english, portuguese), Portuguese articles, and pt-BR.ts with all translated content
   data/              Game content — edit these to change the game's cards, parties and board
     parties.ts         The prebuilt parties
+    districts.ts       The 24 electoral districts: seats, political leaning, map position
     squares.ts         Square kinds (names, colours, descriptions) and how many of each the board has
     bills.ts           The LAW deck (policy bills)
     strategyCards.ts   The STRATEGY deck (scandals, rallies, whips, reactions, no confidence)
@@ -65,6 +66,7 @@ src/
     types.ts           Shared types: axes, parties, cards, players, prompts
     rules.ts           Constants and maths: alignment, seat allocation, popularity scaling
     board.ts           Builds the 50-square board from data/squares.ts
+    electoral.ts       Elections: votes per district and D'Hondt seats
     decks.ts           Shuffled decks
     ai.ts              Bot controller
     engine/            The game engine
@@ -75,6 +77,7 @@ src/
       lobby.ts           the Lobby square,
       committee.ts       the Committee square (leaks, investigations, no confidence),
       debate.ts          the National Debate,
+      shortcut.ts        the Fast Track and Red Tape squares,
       defense.ts         absorbing popularity hits,
       election.ts        elections,
       government.ts      forming governments and the opposition
