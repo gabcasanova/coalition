@@ -30,7 +30,7 @@ const STORY_SOUND: Record<Tone, SoundName> = {
  * A news window in the centre of the screen: "Today, the … decided to …" and "This means …", with the card
  * involved on the side. It stays until the player clicks (or presses Space/Enter): there is no timeout.
  */
-export function showStory(host: HTMLElement, story: Story, engine: Engine): Promise<void> {
+export function showStory(host: HTMLElement, story: Story, engine: Engine, signal?: AbortSignal): Promise<void> {
   const actor = story.actorId !== undefined ? engine.players[story.actorId] : undefined;
   const accent = actor ? css(actor.party.color) : '#e8c35a';
   const side = story.event
@@ -64,21 +64,25 @@ export function showStory(host: HTMLElement, story: Story, engine: Engine): Prom
   // Ignore input for a moment so a click meant for the previous window doesn't skip this one.
   const openedAt = performance.now();
   return new Promise((resolve) => {
-    const close = () => {
-      if (performance.now() - openedAt < 350) return;
-      host.removeEventListener('click', close);
+    const close = (force = false) => {
+      if (!force && performance.now() - openedAt < 350) return;
+      host.removeEventListener('click', onClick);
       window.removeEventListener('keydown', onKey);
+      signal?.removeEventListener('abort', onAbort);
       host.classList.add('hidden');
       resolve();
     };
+    const onClick = () => close();
+    const onAbort = () => close(true);
     const onKey = (e: KeyboardEvent) => {
       if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) {
         e.preventDefault();
         close();
       }
     };
-    host.addEventListener('click', close);
+    host.addEventListener('click', onClick);
     window.addEventListener('keydown', onKey);
+    signal?.addEventListener('abort', onAbort, { once: true });
   });
 }
 

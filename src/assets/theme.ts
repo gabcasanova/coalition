@@ -15,6 +15,8 @@ export const THEME = {
   /** Gold trim: wheel rim, frames, deck borders, handrails. */
   gold: 0xe8c35a,
   benches: 0x2b3446,
+  /** The independents' crossbench, between the government and the opposition. */
+  crossbenches: 0x4b4a5a,
   carpet: 0x7a1424,
   /** Seat colour of an empty / unassigned MP. */
   emptySeat: 0x5a6273,

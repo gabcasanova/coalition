@@ -5,7 +5,12 @@ import { SQUARE_META } from '../../data/squares';
 import { RING_R, squareAngle, TILE_DEPTH, TILE_W, tileHeight, trackPoint } from '../layout';
 import type { Stage } from '../Stage';
 import { tileTexture } from '../textures/board';
+import { buildBallotHouse } from './BallotHouse';
+import { buildStopSign } from './StopSign';
 import { Escalator } from './Escalator';
+
+/** Height of the golden beacon above the Election square (above its stop sign). */
+const BEACON_Y = 5.4;
 
 /**
  * The ring of 50 squares, the golden beacon over the Election square and the escalator that carries pawns from
@@ -33,7 +38,7 @@ export class Track {
         roughness: 0.2,
       }),
     );
-    this.beacon.position.set(0, tileHeight(0) + 3.2, -RING_R - 0.2);
+    this.beacon.position.set(0, tileHeight(0) + BEACON_Y, -RING_R - 0.2);
     stage.scene.add(this.beacon);
 
     // The escalator fills the gap in the ring between square 0 and square 1.
@@ -78,6 +83,10 @@ export class Track {
     const anchor = new THREE.Object3D();
     anchor.position.y = h + 0.06;
     group.add(anchor);
+    // The Presidential Election square has a landmark: a house shaped like a ballot box.
+    if (type === 'presidential') group.add(buildBallotHouse(h, SQUARE_META[type].color, TILE_DEPTH, TILE_W));
+    // Both election squares get a big stop sign in the middle (its post stands between the pawns' two columns).
+    if (type === 'election' || type === 'presidential') group.add(buildStopSign(h + 0.06, 0, 0, 1.7));
 
     this.anchors.push(anchor);
     this.topMaterials.push(top);
@@ -103,7 +112,7 @@ export class Track {
   /** Per-frame animation: the beacon spins and bobs, the escalator steps move. */
   update(dt: number, time: number): void {
     this.beacon.rotation.y += dt * 0.8;
-    this.beacon.position.y = tileHeight(0) + 3.2 + Math.sin(time * 1.5) * 0.25;
+    this.beacon.position.y = tileHeight(0) + BEACON_Y + Math.sin(time * 1.5) * 0.25;
     this.escalator.update(dt);
   }
 }

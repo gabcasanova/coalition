@@ -53,19 +53,37 @@ export function topBarHTML(engine: Engine, viewer: Player | undefined, handOpen:
     <button id="btn-new">${L('New Game', 'Novo Jogo')}</button>`;
 }
 
-/** Government role badges of a party: waiting, Prime Minister, ministries, opposition. */
-function rolesHTML(p: Player): string {
+/** Role badges of a party: waiting, President, Leader of Congress, ministries, opposition or independent. */
+function rolesHTML(p: Player, first = false): string {
   const roles: string[] = [];
+  if (first)
+    roles.push(
+      `<span class="badge opp" title="${L('Leader scrutiny: the most popular party gets 25% less from every popularity gain', 'Escrutínio do líder: o partido mais popular ganha 25% menos em cada aumento de popularidade')}">🔍 ${L('Scrutiny −25%', 'Escrutínio −25%')}</span>`,
+    );
   if (p.waiting)
     roles.push(`<span class="badge opp">⏳ ${L('Waiting at the Election', 'Esperando na Eleição')}</span>`);
-  if (p.isPM) roles.push(`<span class="badge pm">👑 ${L('Prime Minister', 'Primeiro-Ministro')}</span>`);
+  if (p.isPresident)
+    roles.push(
+      `<span class="badge pres" title="${L('+2 vetoes a year', '+2 vetos por ano')}">🎖️ ${L('President', 'Presidente')}</span>`,
+    );
+  if (p.isPM) roles.push(`<span class="badge pm">👑 ${L('Leader of Congress', 'Líder do Congresso')}</span>`);
   for (const pf of p.portfolios) {
     const info = PORTFOLIO_INFO[pf];
     roles.push(`<span class="badge min" title="${info.title}: ${info.perk}">${info.icon} ${info.short}</span>`);
   }
-  if (!p.inGov) roles.push(`<span class="badge opp">${L('Opposition', 'Oposição')}</span>`);
+  if (p.isOppLeader)
+    roles.push(`<span class="badge lead">📣 ${L('Leader of the Opposition', 'Líder da Oposição')}</span>`);
+  else if (p.inOpp) roles.push(`<span class="badge lead">${L('Opposition', 'Oposição')}</span>`);
+  else if (!p.inGov) roles.push(`<span class="badge opp">${L('Independent', 'Independente')}</span>`);
   return roles.join('');
 }
+
+/** "Vetoes left this year: 2 of 3", for a party's veto counter. */
+const vetoTip = (engine: Engine, p: Player) =>
+  L(
+    `Vetoes left this year: ${engine.vetoesLeft(p)} of ${R.vetoAllowance(p)} (1 for every party, 2 for the Leader of Congress and the Leader of the Opposition, +${R.PRESIDENT_VETOES} for the President's party)`,
+    `Vetos restantes neste ano: ${engine.vetoesLeft(p)} de ${R.vetoAllowance(p)} (1 para cada partido, 2 para o Líder do Congresso e o Líder da Oposição, +${R.PRESIDENT_VETOES} para o partido do Presidente)`,
+  );
 
 /** A party's ideology, for its panel's tooltip. */
 const ideologyTip = (p: Player) =>
@@ -95,7 +113,7 @@ export function playersHTML(engine: Engine, viewer: Player | undefined): string 
               <div class="mytag">${p.party.tagline}</div>
             </div>
           </div>
-          <div class="roles">${rolesHTML(p)}</div>
+          <div class="roles">${rolesHTML(p, engine.isFrontRunner(p))}</div>
           <div class="popbar big"><div style="width:${p.popularity}%"></div><span>${popularity} <b>${p.popularity}</b></span></div>
           <div class="mystats">
             <div title="${L('Parliamentary seats', 'Cadeiras no parlamento')}"><b>${p.seats}</b><span>🪑 ${L('Seats', 'Cadeiras')}</span></div>
@@ -103,6 +121,7 @@ export function playersHTML(engine: Engine, viewer: Player | undefined): string 
             <div class="cap" title="${L('Political Capital: earned from lobbies, laws and office; spent on rallies, vetoes, whips and crisis fixes', 'Capital Político: vem de lobbies, leis e cargos; é gasto em comícios, vetos, pressão na bancada e crises')}">
               <b>${p.capital}</b><span>⭐ ${L('Capital', 'Capital')}</span>
             </div>
+            <div title="${vetoTip(engine, p)}"><b>${engine.vetoesLeft(p)}<small>/${R.vetoAllowance(p)}</small></b><span>🛑 ${L('Vetoes', 'Vetos')}</span></div>
           </div>
         </div>`;
       }
@@ -113,13 +132,14 @@ export function playersHTML(engine: Engine, viewer: Player | undefined): string 
           <span class="rank r${rank}">#${rank}</span><span class="pcicon">${emblem(p.party)}</span>
           <span class="pcname">${p.party.name}</span><span class="who">${who}</span>
         </div>
-        <div class="roles">${rolesHTML(p)}</div>
+        <div class="roles">${rolesHTML(p, engine.isFrontRunner(p))}</div>
         <div class="popbar"><div style="width:${p.popularity}%"></div><span>${popularity} <b>${p.popularity}</b></span></div>
         <div class="stats">
           <span title="${L('Political Capital', 'Capital Político')}">⭐ ${p.capital}</span>
           <span title="${L('Parliamentary seats', 'Cadeiras no parlamento')}">🪑 ${p.seats}</span>
           <span title="${L('Laws passed', 'Leis aprovadas')}">📜 ${p.stats.billsPassed}</span>
           <span title="${L('Cards in hand', 'Cartas na mão')}">🃏 ${p.hand.length}</span>
+          <span title="${vetoTip(engine, p)}">🛑 ${engine.vetoesLeft(p)}/${R.vetoAllowance(p)}</span>
         </div>
       </div>`;
     })
@@ -129,10 +149,22 @@ export function playersHTML(engine: Engine, viewer: Player | undefined): string 
 /** The parliament bar under the top bar: every party's seats, opposition left and government right. */
 export function seatBarHTML(engine: Engine): string {
   const governmentSeats = engine.players.filter((p) => p.inGov).reduce((s, p) => s + p.seats, 0);
+  const oppositionSeats = engine.players.filter((p) => p.inOpp).reduce((s, p) => s + p.seats, 0);
+  const independentSeats = engine.players.filter((p) => R.isIndependent(p)).reduce((s, p) => s + p.seats, 0);
+  const role = (p: Player) =>
+    p.inGov
+      ? L(' (government)', ' (governo)')
+      : p.inOpp
+        ? L(' (opposition)', ' (oposição)')
+        : governmentSeats
+          ? L(' (independent)', ' (independente)')
+          : '';
+  const independents =
+    governmentSeats && independentSeats ? `${L('Independents', 'Independentes')} <b>${independentSeats}</b> · ` : '';
   const segments = R.benchOrder(engine.players)
     .filter((p) => p.seats > 0)
     .map((p) => {
-      const tip = `${p.party.name}: ${p.seats} ${L('seats', 'cadeiras')}${p.inGov ? L(' (government)', ' (governo)') : ''}`;
+      const tip = `${p.party.name}: ${p.seats} ${L('seats', 'cadeiras')}${role(p)}`;
       const label =
         p.seats >= 12 ? `${emblem(p.party)} ${p.party.short} ${p.seats}` : p.seats >= 6 ? emblem(p.party) : '';
       return `<div class="seg ${p.inGov ? 'gov' : ''}" style="flex:${p.seats};background:${css(p.party.color)}" title="${tip}">${label}</div>`;
@@ -141,7 +173,7 @@ export function seatBarHTML(engine: Engine): string {
   const majorityLine = ((R.TOTAL_SEATS - R.MAJORITY) / R.TOTAL_SEATS) * 100;
   return `<div class="sbar">${segments}<div class="maj" style="left:${majorityLine}%"></div></div>
     <div class="slabel">
-      ◀ ${L('Opposition', 'Oposição')} <b>${R.TOTAL_SEATS - governmentSeats}</b> ·
+      ◀ ${L('Opposition', 'Oposição')} <b>${oppositionSeats}</b> · ${independents}
       ${L('Government', 'Governo')} <b>${governmentSeats}</b> ▶ ·
       ${L('majority', 'maioria')} ${R.MAJORITY}
     </div>`;

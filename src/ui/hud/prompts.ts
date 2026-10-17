@@ -9,8 +9,14 @@ export interface PromptHosts {
   modal: HTMLElement;
 }
 
-/** Shows a prompt and resolves with the index of the chosen option. */
-export function showPrompt(hosts: PromptHosts, prompt: Prompt, p: Player, humans: number): Promise<number> {
+/** Shows a prompt and resolves with the index of the chosen option (-1 if `signal` aborts it). */
+export function showPrompt(
+  hosts: PromptHosts,
+  prompt: Prompt,
+  p: Player,
+  humans: number,
+  signal?: AbortSignal,
+): Promise<number> {
   return new Promise((resolve) => {
     const asBar = prompt.mode === 'bar';
     const host = asBar ? hosts.bar : hosts.modal;
@@ -22,10 +28,13 @@ export function showPrompt(hosts: PromptHosts, prompt: Prompt, p: Player, humans
 
     const done = (i: number) => {
       window.removeEventListener('keydown', onKey);
+      signal?.removeEventListener('abort', onAbort);
       host.classList.add('hidden');
       host.innerHTML = '';
       resolve(i);
     };
+    const onAbort = () => done(-1);
+    signal?.addEventListener('abort', onAbort, { once: true });
     // In the action bar, Space/Enter picks the first available option.
     const onKey = (e: KeyboardEvent) => {
       if (!asBar || (e.code !== 'Space' && e.code !== 'Enter')) return;
@@ -97,7 +106,7 @@ function dialogHTML(prompt: Prompt, p: Player, who: string, asBar: boolean): str
 
 /**
  * A spin prompt: the player clicks the 3D roulette wheel itself (Space/Enter also works). `armWheel` resolves
- * when the wheel is clicked; `disarmWheel` stops waiting for it.
+ * when the wheel is clicked; `disarmWheel` stops waiting for it. Resolves with -1 if `signal` aborts it.
  */
 export function showSpinPrompt(
   bar: HTMLElement,
@@ -105,6 +114,7 @@ export function showSpinPrompt(
   p: Player,
   armWheel: () => Promise<void>,
   disarmWheel?: () => void,
+  signal?: AbortSignal,
 ): Promise<number> {
   return new Promise((resolve) => {
     bar.innerHTML = `<div class="pr pbar spinhint" style="--pc:${css(p.party.color)}">
@@ -114,15 +124,18 @@ export function showSpinPrompt(
     </div>`;
     bar.classList.remove('hidden');
     let finished = false;
-    const done = () => {
+    const done = (i = 0) => {
       if (finished) return;
       finished = true;
       window.removeEventListener('keydown', onKey);
+      signal?.removeEventListener('abort', onAbort);
       disarmWheel?.();
       bar.classList.add('hidden');
       bar.innerHTML = '';
-      resolve(0);
+      resolve(i);
     };
+    const onAbort = () => done(-1);
+    signal?.addEventListener('abort', onAbort, { once: true });
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
@@ -130,33 +143,78 @@ export function showSpinPrompt(
       }
     };
     window.addEventListener('keydown', onKey);
-    void armWheel().then(done);
+    void armWheel().then(() => done());
   });
 }
 
-/** After the deal: a human player's opening bills fan in one by one. Resolves when the player continues. */
-export function showOpeningHand(modal: HTMLElement, p: Player): Promise<void> {
-  const cards = p.hand
-    .map((c, i) => `<div class="dealt" style="animation-delay:${i * 0.12}s">${cardHTML(c, p)}</div>`)
+/**
+ * The yearly draft: the bills dealt to a human fan in, and the player picks `count` of them (click to toggle;
+ * "Best for my ideology" picks for them). Resolves with the picked indices, or null if `signal` aborts it.
+ */
+export function showDraft(
+  modal: HTMLElement,
+  prompt: Prompt,
+  p: Player,
+  count: number,
+  signal?: AbortSignal,
+): Promise<number[] | null> {
+  const cards = prompt.options
+    .map(
+      (o, i) =>
+        `<button class="dealt draftcard" data-i="${i}" style="animation-delay:${i * 0.08}s">${o.card ? cardHTML(o.card, p) : o.label}</button>`,
+    )
     .join('');
-  modal.innerHTML = `<div class="pr pdialog openinghand" style="--pc:${css(p.party.color)}">
+  modal.innerHTML = `<div class="pr pdialog openinghand draft" style="--pc:${css(p.party.color)}">
     <div class="prwho">${emblem(p.party)} ${p.party.name}</div>
-    <div class="prtitle">${L(`Your opening hand: ${p.hand.length} policy bills`, `Sua mão inicial: ${p.hand.length} projetos de lei`)}</div>
-    <div class="prbody">${L(
-      'These are the laws you can put before parliament. Bills in <b style="color:var(--good)">green</b> match your ideology and will win you popularity; bills in <b style="color:var(--bad)">red</b> go against it. Every Legislature square adds a new bill from the LAW deck, and you must introduce one.',
-      'Estas são as leis que você pode levar ao plenário. Projetos em <b style="color:var(--good)">verde</b> combinam com sua ideologia e rendem popularidade; projetos em <b style="color:var(--bad)">vermelho</b> vão contra ela. Cada casa de Plenário adiciona um novo projeto do baralho de LEIS, e você deve apresentar um.',
-    )}</div>
+    <div class="prtitle">${prompt.title}</div>
+    ${prompt.body ? `<div class="prbody">${prompt.body}</div>` : ''}
     <div class="dealhand">${cards}</div>
     <div class="opts">
-      <button class="opt primary" id="takeseat"><span class="ol">${L('Take your seat in parliament ▶', 'Assumir sua cadeira no parlamento ▶')}</span></button>
+      <button class="opt" id="draftbest"><span class="ol">✨ ${L('Best for my ideology', 'Melhores para minha ideologia')}</span></button>
+      <button class="opt primary" id="draftgo" disabled><span class="ol" id="draftcount"></span></button>
     </div>
   </div>`;
   modal.classList.remove('hidden');
+  const picked = new Set<number>();
+  const go = modal.querySelector<HTMLButtonElement>('#draftgo')!;
+  const buttons = [...modal.querySelectorAll<HTMLButtonElement>('.draftcard')];
+  const render = () => {
+    buttons.forEach((b) => b.classList.toggle('on', picked.has(Number(b.dataset.i))));
+    modal.classList.toggle('full', picked.size >= count);
+    go.disabled = picked.size !== count;
+    modal.querySelector('#draftcount')!.textContent =
+      picked.size === count
+        ? L(`Keep these ${count} bills ▶`, `Ficar com estes ${count} projetos ▶`)
+        : L(`Pick ${count - picked.size} more`, `Escolha mais ${count - picked.size}`);
+  };
+  render();
   return new Promise((resolve) => {
-    modal.querySelector('#takeseat')!.addEventListener('click', () => {
+    const close = (result: number[] | null) => {
+      signal?.removeEventListener('abort', onAbort);
       modal.classList.add('hidden');
+      modal.classList.remove('full');
       modal.innerHTML = '';
-      resolve();
+      resolve(result);
+    };
+    const onAbort = () => close(null);
+    signal?.addEventListener('abort', onAbort, { once: true });
+    for (const b of buttons) {
+      b.addEventListener('click', () => {
+        const i = Number(b.dataset.i);
+        if (picked.has(i)) picked.delete(i);
+        else if (picked.size < count) picked.add(i);
+        render();
+      });
+    }
+    modal.querySelector('#draftbest')!.addEventListener('click', () => {
+      picked.clear();
+      prompt.options
+        .map((o, i) => ({ i, v: o.ai }))
+        .sort((a, b) => b.v - a.v)
+        .slice(0, count)
+        .forEach((x) => picked.add(x.i));
+      render();
     });
+    go.addEventListener('click', () => picked.size === count && close([...picked].sort((a, b) => a - b)));
   });
 }

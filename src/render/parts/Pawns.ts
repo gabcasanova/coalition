@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { sound } from '../../audio';
 import { BOARD_SIZE } from '../../core/rules';
 import type { PartyDef } from '../../core/types';
-import { settings } from '../../core/settings';
+import { animationSpeed } from '../../core/settings';
 import { easeInOut, easeOutCubic } from '../animation';
 import type { PawnShot } from '../CameraDirector';
 import { RING_R } from '../layout';
@@ -116,8 +116,8 @@ export class Pawns {
     await hop(from, escalator.pointAt(s0, lane));
     // The stairs start moving to carry the pawn down (standing on a tread), and stop once it is off.
     const rideSpeed = 1.6;
-    escalator.speed = rideSpeed * settings.speed;
-    sound.play('escalator', (s1 - s0) / rideSpeed / settings.speed); // the hum lasts the whole ride, in real seconds
+    escalator.speed = rideSpeed * animationSpeed();
+    sound.play('escalator', (s1 - s0) / rideSpeed / animationSpeed()); // the hum lasts the whole ride, in real seconds
     await this.stage.tween((s1 - s0) / rideSpeed, (k) => {
       pawn.position.copy(escalator.pointAt(s0 + (s1 - s0) * k, lane));
       pawn.rotation.z = Math.sin(k * Math.PI * 5) * 0.05;

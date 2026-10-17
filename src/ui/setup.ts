@@ -108,7 +108,7 @@ export function runSetup(hooks: SetupHooks): Promise<PlayerSetup[]> {
         <button data-lang="pt" class="${isPT ? 'on' : ''}">Português (BR)</button>
         ${soundButton()}
       </div>
-      <div class="shint">${L('Five years. Fifty squares a year. 150 seats. Win 76 alone — or win the most elections.', 'Cinco anos. Cinquenta casas por ano. 150 cadeiras. Conquiste 76 sozinho — ou vença mais eleições.')}</div>
+      <div class="shint">${L('Five years. Fifty squares a year. 150 seats. Win 76 alone — or score the most points in Congress and presidential elections.', 'Cinco anos. Cinquenta casas por ano. 150 cadeiras. Conquiste 76 sozinho — ou faça mais pontos nas eleições do Congresso e da presidência.')}</div>
       <div class="credits">${L('Created by', 'Criado por')} <b>Gabriel Casanova</b></div>
     </div>`;
 

@@ -85,7 +85,7 @@ export const CARDS_PT: Record<string, [string, string]> = {
   damage: ['Controle de Danos', 'Reduz pela metade qualquer perda de popularidade.'],
   noconf: [
     'Moção de Desconfiança',
-    'Só a oposição, numa casa de Comissão: se a oposição tiver 76+ cadeiras, o governo cai.',
+    'Só a bancada da oposição, numa casa de Comissão: se a oposição e os independentes que a apoiam somarem 76+ cadeiras, o governo cai.',
   ],
 };
 
@@ -225,6 +225,31 @@ export const EVENTS_PT: Record<string, { name: string; flavor: string; text: str
     flavor: 'O vídeo emocionado de um voluntário batendo de porta em porta passa de dez milhões de views.',
     text: 'Pura sorte, e puro ouro: seu partido ganha 6 de popularidade sem gastar nada.',
   },
+  tapes: {
+    name: 'As Fitas Secretas',
+    flavor: 'Horas de gravações da sua cúpula trocando favores por doações são divulgadas à meia-noite.',
+    text: 'Não há multa grande o bastante nem desculpa boa o suficiente: as fitas custam 14 de popularidade, e 30% a mais se o seu partido for conhecido por centralizar o poder.',
+  },
+  arrest: {
+    name: 'Líder Preso de Madrugada',
+    flavor: 'Viaturas na porta da casa do seu líder, ao vivo em todos os canais.',
+    text: 'Seja qual for a decisão da Justiça, as imagens já estão em toda parte: você perde 15 de popularidade.',
+  },
+  bankcollapse: {
+    name: 'Quebra de Banco',
+    flavor: 'Um banco que seu partido lutou para desregulamentar quebra, levando milhares de aposentadorias junto.',
+    text: 'Os poupadores querem um culpado: você perde 12 de popularidade. Partidos de livre mercado, que afrouxaram as regras, perdem 40% a mais; os intervencionistas, um quarto a menos.',
+  },
+  chemicaldisaster: {
+    name: 'Desastre na Fábrica Química',
+    flavor: 'Uma nuvem tóxica cobre uma cidade, vinda de uma fábrica que seu partido garantiu ser segura.',
+    text: 'Evacuações, hospitais, enterros: você perde 13 de popularidade. Partidos que defenderam a indústria perdem 40% a mais; os ecologistas, que avisaram, perdem 30% a menos.',
+  },
+  blackout: {
+    name: 'Apagão de Três Dias',
+    flavor: 'A rede elétrica nacional cai em plena onda de calor. Hospitais funcionam com geradores.',
+    text: 'No governo, você leva a culpa por cada ala de hospital no escuro e perde 16 de popularidade; na oposição, ainda perde 9 pelos planos que nunca fez.',
+  },
   celebrity: {
     name: 'Apoio de Celebridade',
     flavor: 'O cantor mais amado do país sobe ao palco com as cores do seu partido.',
@@ -288,12 +313,17 @@ export const SQUARES_PT: Record<string, { name: string; short: string; desc: str
   formation: {
     name: 'Formação de Governo',
     short: 'GABINETE',
-    desc: 'Reunião do gabinete. Partidos do governo ganham +2 ⭐ de capital; partidos da oposição compram uma carta.',
+    desc: 'Reunião do gabinete. Partidos do governo ganham +2 ⭐ de capital; partidos da oposição compram uma carta de ESTRATÉGIA; independentes ganham +2 de popularidade.',
   },
   midterm: {
     name: 'Convenção de Meio de Mandato',
     short: 'CONVENÇÃO',
     desc: 'O primeiro partido a chegar aqui no ano revela uma Crise Global que atinge todos os partidos. Parar exatamente aqui: convenção do partido, +4 de popularidade e +2 ⭐.',
+  },
+  presidential: {
+    name: 'Eleição Presidencial',
+    short: 'PRESIDENTE',
+    desc: 'O primeiro partido a chegar aqui no ano dispara a eleição presidencial: o partido mais popular naquele momento conquista a presidência e 2 vetos extras por ano. Parar exatamente aqui: audiência no palácio, +2 ⭐.',
   },
   debate: {
     name: 'Debate Nacional',
@@ -313,7 +343,7 @@ export const SQUARES_PT: Record<string, { name: string; short: string; desc: str
   crisis: {
     name: 'Crise Nacional',
     short: 'CRISE',
-    desc: 'Compre um evento de crise. Ideologia, cartas de reação e ⭐ capital podem amortecer o golpe.',
+    desc: 'Compre um evento de crise. Ideologia, cartas de reação e ⭐ capital podem amortecer o golpe. Às vezes é uma ☢️ supercrise (mais provável para os dois partidos mais populares): nenhum ⭐ capital a compra, e as cartas só cortam metade.',
   },
   lobby: {
     name: 'Lobistas e Facções',
@@ -323,7 +353,7 @@ export const SQUARES_PT: Record<string, { name: string; short: string; desc: str
   committee: {
     name: 'Comissão Parlamentar',
     short: 'CPI',
-    desc: 'Redija um relatório (+2 ⭐), vaze um escândalo contra um rival, abra uma investigação (3 ⭐) ou, na oposição, apresente uma moção de desconfiança.',
+    desc: 'Redija um relatório (+2 ⭐), vaze um escândalo contra um rival, abra uma investigação (3 ⭐) ou, na bancada da oposição, apresente uma moção de desconfiança.',
   },
 };
 

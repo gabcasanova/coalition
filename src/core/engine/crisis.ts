@@ -5,13 +5,39 @@ import { type EventCardView, type EventDef, type Player } from '../types';
 import { W_CAP } from './aiValues';
 import { hit } from './defense';
 import type { Engine } from './Engine';
-import { and, doP, eventFace, LABEL_CRISIS, pn, pop, the, The } from './text';
+import { and, doP, eventFace, LABEL_CRISIS, LABEL_SUPER_CRISIS, pn, pop, the, The } from './text';
 
 export async function crisis(game: Engine, p: Player): Promise<void> {
+  // Now and then a super crisis instead, more often for the front-runners.
+  const ahead = game.players.filter((q) => q.popularity > p.popularity).length;
+  const chance = ahead <= 1 ? R.SUPER_CRISIS_CHANCE_FRONTRUNNER : R.SUPER_CRISIS_CHANCE;
+  if (Math.random() < chance) return superCrisis(game, p);
   const ev = game.crises.next();
   await game.view.drawCard('crisis', p.id, eventFace(LABEL_CRISIS, ev));
   if (ev.special === 'floorcross') await floorCrossing(game, p, ev);
   else await applyEvent(game, p, ev, L('LOCAL CRISIS', 'CRISE LOCAL'));
+}
+
+/** A super crisis: a big hit that no amount of ⭐ capital can buy off. */
+async function superCrisis(game: Engine, p: Player): Promise<void> {
+  const ev = game.superCrises.next();
+  game.view.log(
+    L(
+      `☢️ <b>Super crisis</b> for ${pn(p)}: <i>${ev.name}</i>.`,
+      `☢️ <b>Supercrise</b> para ${pn(p)}: <i>${ev.name}</i>.`,
+    ),
+    'event',
+  );
+  await game.view.banner(
+    L('☢️ SUPER CRISIS!', '☢️ SUPERCRISE!'),
+    L(
+      `${p.party.name} can't pay its way out of this one.`,
+      `${p.party.name} não vai conseguir comprar uma saída desta vez.`,
+    ),
+    'event',
+  );
+  await game.view.drawCard('crisis', p.id, eventFace(LABEL_SUPER_CRISIS, ev));
+  await applyEvent(game, p, ev, LABEL_SUPER_CRISIS, true);
 }
 
 /** Floor crossing: some of a party's MPs defect, seats and all, to the closest rival until the next election. */
@@ -142,7 +168,14 @@ export async function floorCrossing(game: Engine, p: Player, ev: EventDef): Prom
   );
 }
 
-export async function applyEvent(game: Engine, p: Player, ev: EventDef, subtitle: string): Promise<void> {
+/** `superCrisis`: no paying it off, and nothing cancels it completely (see defense.ts). */
+export async function applyEvent(
+  game: Engine,
+  p: Player,
+  ev: EventDef,
+  subtitle: string,
+  superCrisis = false,
+): Promise<void> {
   const d = ev.delta(p);
   const view: EventCardView = {
     title: ev.name,
@@ -152,7 +185,7 @@ export async function applyEvent(game: Engine, p: Player, ev: EventDef, subtitle
     tone: d < 0 ? 'bad' : 'good',
   };
   if (d < 0) {
-    await hit(game, p, { ev: view, amount: -d, tags: ev.tags, options: ev.options });
+    await hit(game, p, { ev: view, amount: -d, tags: ev.tags, options: ev.options, superCrisis });
   } else {
     game.view.spotlight(p.id);
     const got = game.gainPop(p, d);

@@ -21,13 +21,13 @@ area and cropping the overflow), so keep the same proportions.
 
 | Slot                                                                   | What it is                                    | Size          | Notes                                                                                                              |
 | ---------------------------------------------------------------------- | --------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `tile.election`, `tile.formation`, `tile.midterm`, `tile.debate`        | Top face of the four fixed squares            | 256 × 378     | The top edge of the image faces the centre of the table. The square's number is still drawn in the top-left corner. |
+| `tile.election`, `tile.formation`, `tile.midterm`, `tile.presidential`, `tile.debate` | Top face of the five fixed squares | 256 × 378     | The top edge of the image faces the centre of the table. The square's number is still drawn in the top-left corner. |
 | `tile.legislature`, `tile.media`, `tile.crisis`, `tile.lobby`, `tile.committee`, `tile.advance`, `tile.retreat` | Top face of the regular squares       | 256 × 378     | Same as above.                                                                                                     |
 | `deck.law`, `deck.media`, `deck.strategy`, `deck.lobby`, `deck.crisis`, `deck.global` | Back of each deck of cards       | 360 × 504     | Also used for the cards flying out of the deck.                                                                    |
 | `wheel`                                                                | Face of the roulette wheel                    | 1024 × 1024   | Keep the numbers where the placeholder has them: number *k* is centred at angle (k − 0.5) × 36°, clockwise from 3 o'clock. |
 | `table.wood`                                                           | Wood of the table                             | any, tileable | Repeated 4 × 4 times.                                                                                              |
 | `table.felt`                                                           | Green felt of the table top                   | any, tileable | Repeated 6 × 6 times.                                                                                              |
-| `portrait.leader`                                                      | The Prime Minister's bust in the portrait     | 512 × 600     | Transparent PNG: it is drawn over the sunburst in the party's colour; the party badge goes in the bottom-left corner. |
+| `portrait.leader`                                                      | The bust in the Leader of Congress's and the President's portraits | 512 × 600     | Transparent PNG: it is drawn over the sunburst in the party's colour; the party badge goes in the bottom-left corner. |
 
 ## Party emblems
 
@@ -43,7 +43,7 @@ glTF binary files (`.glb`). Every model stands with its feet at y = 0 and faces 
 | -------- | ----------------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
 | `pawn`   | A party's pawn on the board         | about 1.35           | Materials named `party` take the party colour; the emblem tag still floats above it.     |
 | `mp`     | One MP on the benches (×150)        | about 0.73           | All meshes are merged into one shape and coloured per party (the model's materials are ignored). |
-| `leader` | The Prime Minister and the Leader of the Opposition | about 1.6 | Materials named `party` take the party colour.                                            |
+| `leader` | The Leader of Congress and the Leader of the Opposition | about 1.6 | Materials named `party` take the party colour.                                            |
 
 ## Sounds
 
@@ -63,7 +63,8 @@ follow an animation are cut off when the animation ends.
 | `popUp`, `popDown`                     | A party's popularity goes up or down                                      |
 | `billPassed`, `billVetoed`             | A bill becomes law (gavel and cheers) or is vetoed (buzzer and boos)      |
 | `opposition`                           | The opposition forms                                                      |
-| `portrait`                             | The new Prime Minister's portrait is revealed                             |
+| `portrait`                             | A new Leader of Congress's or President's portrait is revealed            |
+| `helicopter`                           | The President's helicopter flies in and out (about 7.6 s)                 |
 | `footsteps`                            | MPs cross the floor (about 3 s)                                           |
 | `drumroll`                             | The vote count on election night (about 7 s)                              |
 | `electionResult`                       | The election winner is announced                                          |

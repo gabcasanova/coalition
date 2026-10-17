@@ -1,16 +1,17 @@
-import type { ElectionResult, Engine, GameResult, Story } from '../../core/engine';
+import type { ElectionResult, Engine, GameResult, PresidentialResult, Story } from '../../core/engine';
 import { sound } from '../../audio';
-import { settings } from '../../core/settings';
+import { fastForwardSignal, settings } from '../../core/settings';
 import type { Player, Prompt, Tone } from '../../core/types';
 import { L } from '../../i18n';
 import { nowPlayingHTML, showBanner, showStory, showTurnCard } from './announcements';
 import { showElectionNight } from './electionNight';
+import { showPresidentialNight } from './presidentialNight';
 import { showGameOver } from './gameOver';
 import { showHelp } from './help';
 import { HistoryLog } from './history';
 import { byId, css } from './html';
 import { handHTML, playersHTML, seatBarHTML, squareTooltipHTML, topBarHTML } from './panels';
-import { showOpeningHand, showPrompt, showSpinPrompt } from './prompts';
+import { showDraft, showPrompt, showSpinPrompt } from './prompts';
 
 /**
  * The HTML overlay on top of the 3D table: top bar, party panels, parliament bar, hand drawer, news stories,
@@ -110,15 +111,17 @@ export class Hud {
     this.history.add(html, tone, this.engine?.year ?? 1);
   }
 
-  /** A news story in the middle of the screen; resolves when the player clicks on. */
+  /** A news story in the middle of the screen; resolves when the player clicks on (at once when fast-forwarding). */
   story(story: Story): Promise<void> {
-    return showStory(this.el.story, story, this.engine!);
+    if (settings.fastForward) return Promise.resolve();
+    return showStory(this.el.story, story, this.engine!, fastForwardSignal());
   }
 
   /** The big "NOW PLAYING" card at the start of a turn. */
   turnStart(playerId: number): Promise<void> {
     const p = this.engine!.players[playerId];
     this.setNow(playerId);
+    if (settings.fastForward) return Promise.resolve();
     return showTurnCard(this.el.turnCard, p, this.engine!);
   }
 
@@ -131,31 +134,42 @@ export class Hud {
   }
 
   banner(title: string, text: string, tone: Tone = 'info'): Promise<void> {
+    if (settings.fastForward) return Promise.resolve();
     return showBanner(this.el.banner, title, text, tone);
   }
 
-  /** A decision for a human player; resolves with the chosen option's index. */
-  prompt(prompt: Prompt): Promise<number> {
+  /** A decision for a human player; resolves with the chosen option's index (-1 if `signal` aborts it). */
+  prompt(prompt: Prompt, signal?: AbortSignal): Promise<number> {
     const p = this.engine!.players[prompt.playerId];
     if (this.viewerId !== p.id) {
       // Hotseat: show the deciding player's own panel and hand.
       this.viewerId = p.id;
       this.refresh();
     }
-    if (prompt.spin && this.armWheel) return showSpinPrompt(this.el.bar, prompt, p, this.armWheel, this.disarmWheel);
+    if (prompt.spin && this.armWheel)
+      return showSpinPrompt(this.el.bar, prompt, p, this.armWheel, this.disarmWheel, signal);
     const humans = this.engine!.players.filter((q) => !q.isAI).length;
-    return showPrompt({ bar: this.el.bar, modal: this.el.modal }, prompt, p, humans);
+    return showPrompt({ bar: this.el.bar, modal: this.el.modal }, prompt, p, humans, signal);
   }
 
   /** After the opening deal, shows a human player their opening bills. */
-  showOpeningHand(playerId: number): Promise<void> {
-    this.viewerId = playerId;
+  /** The yearly draft for a human: pick `count` of the offered bills (null if a fast-forward aborts it). */
+  draft(prompt: Prompt, count: number, signal?: AbortSignal): Promise<number[] | null> {
+    this.viewerId = prompt.playerId;
     this.refresh();
-    return showOpeningHand(this.el.modal, this.engine!.players[playerId]);
+    return showDraft(this.el.modal, prompt, this.engine!.players[prompt.playerId], count, signal);
   }
 
+  /** Presidential election night on TV (skipped while fast-forwarding). */
+  presidentialNight(result: PresidentialResult): Promise<void> {
+    if (settings.fastForward) return Promise.resolve();
+    return showPresidentialNight(this.el.electionNight, result, this.engine!.players, fastForwardSignal());
+  }
+
+  /** Election night on TV (skipped while fast-forwarding: the result is in the History log). */
   electionNight(result: ElectionResult): Promise<void> {
-    return showElectionNight(this.el.electionNight, result, this.engine!.players);
+    if (settings.fastForward) return Promise.resolve();
+    return showElectionNight(this.el.electionNight, result, this.engine!.players, fastForwardSignal());
   }
 
   gameOver(result: GameResult): void {

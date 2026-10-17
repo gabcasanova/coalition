@@ -196,12 +196,21 @@
   color: #1a1406;
   font-weight: 800;
 }
+.badge.pres {
+  background: linear-gradient(90deg, #2f5fb3, #4f7fd3);
+  color: #fff;
+  font-weight: 800;
+}
 .badge.min {
   background: rgba(201, 167, 255, 0.18);
   color: #e2d2ff;
 }
 .badge.opp {
   color: var(--muted);
+}
+.badge.lead {
+  background: rgba(255, 107, 107, 0.16);
+  color: #ffb3b3;
 }
 .popbar {
   position: relative;
@@ -665,6 +674,10 @@
 .mystats b {
   font-size: 18px;
   font-weight: 900;
+}
+.mystats b small {
+  font-size: 11px;
+  color: var(--muted);
 }
 .mystats span {
   font-size: 10px;

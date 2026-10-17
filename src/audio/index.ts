@@ -6,6 +6,7 @@
  * click or key press. The mute setting is remembered between visits.
  */
 import { soundFile } from '../assets';
+import { settings } from '../core/settings';
 import { SOUNDS, type SoundName } from './sounds';
 import { Synth } from './synth';
 
@@ -69,7 +70,7 @@ for (const event of ['pointerdown', 'keydown'] as const) window.addEventListener
 export const sound = {
   /** Plays a sound. `duration` (seconds) stretches sounds that follow an animation (escalator, drumroll, footsteps). */
   play(name: SoundName, duration?: number): void {
-    if (muted || !ctx || !synth || ctx.state !== 'running') return;
+    if (muted || settings.fastForward || !ctx || !synth || ctx.state !== 'running') return;
     const now = performance.now();
     if (now - (lastPlayed.get(name) ?? -Infinity) < (MIN_GAP_MS[name] ?? 0)) return;
     lastPlayed.set(name, now);

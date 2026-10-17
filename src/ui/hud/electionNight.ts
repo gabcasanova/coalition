@@ -20,7 +20,12 @@ const ROW_H = 46;
 /** How long the count takes, in ms at normal speed. */
 const COUNT_MS = 9000;
 
-export function showElectionNight(host: HTMLElement, result: ElectionResult, players: Player[]): Promise<void> {
+export function showElectionNight(
+  host: HTMLElement,
+  result: ElectionResult,
+  players: Player[],
+  signal?: AbortSignal,
+): Promise<void> {
   const rows = result.rows.map((row) => ({ ...row, p: players[row.playerId] }));
   const winner = players[result.winnerId];
   const districts = result.districts;
@@ -190,7 +195,27 @@ export function showElectionNight(host: HTMLElement, result: ElectionResult, pla
   };
 
   return new Promise((resolve) => {
+    // Closes the window: Continue, Space/Enter once the results are up, or a fast-forward starting (`signal`).
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      window.removeEventListener('keydown', onKey);
+      signal?.removeEventListener('abort', close);
+      host.classList.add('hidden');
+      host.innerHTML = '';
+      resolve();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.code === 'Space' || e.code === 'Enter') && host.querySelector('#tvfoot:not(.hidden)')) {
+        e.preventDefault();
+        close();
+      }
+    };
+    signal?.addEventListener('abort', close, { once: true });
+
     const frame = (now: number) => {
+      if (closed) return;
       const t = Math.min(1, (now - start) / duration);
       while (next < order.length && declareAt[next] <= t) declare(order[next++]);
       if (t < 1) requestAnimationFrame(frame);
@@ -202,13 +227,13 @@ export function showElectionNight(host: HTMLElement, result: ElectionResult, pla
 
     const showResults = () => {
       sound.play('electionResult');
-      const wins = winner.stats.electionWins;
+      const points = R.points(winner.stats);
       const winnerName = `<b style="color:${css(winner.party.color)}">${winner.party.name}</b>`;
       const majority =
         winner.seats >= R.MAJORITY ? L(' — <b>ABSOLUTE MAJORITY!</b>', ' — <b>MAIORIA ABSOLUTA!</b>') : '';
       $('tvhead').innerHTML = L(
-        `🏆 ${winnerName} wins the Year ${result.year} election — ${wins} election win${wins === 1 ? '' : 's'} so far${majority}`,
-        `🏆 ${winnerName} vence a eleição do Ano ${result.year} — ${wins} ${wins === 1 ? 'vitória' : 'vitórias'} até agora${majority}`,
+        `🏆 ${winnerName} wins the Year ${result.year} election — ${points} point${points === 1 ? '' : 's'} so far${majority}`,
+        `🏆 ${winnerName} vence a eleição do Ano ${result.year} — ${points} ${points === 1 ? 'ponto' : 'pontos'} até agora${majority}`,
       );
       const seatRows = rows
         .slice()
@@ -238,24 +263,13 @@ export function showElectionNight(host: HTMLElement, result: ElectionResult, pla
       $('tvseats').innerHTML =
         `<div class="tvlabel">${L('SEATS IN PARLIAMENT', 'CADEIRAS NO PARLAMENTO')}</div>${seatRows}`;
       setTimeout(() => {
+        if (closed) return;
         $('tvseats').classList.remove('hidden');
         $('tvfoot').classList.remove('hidden');
       }, paced(500));
 
-      const done = () => {
-        window.removeEventListener('keydown', onKey);
-        host.classList.add('hidden');
-        host.innerHTML = '';
-        resolve();
-      };
-      const onKey = (e: KeyboardEvent) => {
-        if ((e.code === 'Space' || e.code === 'Enter') && !$('tvfoot').classList.contains('hidden')) {
-          e.preventDefault();
-          done();
-        }
-      };
       window.addEventListener('keydown', onKey);
-      $('tvgo').addEventListener('click', done);
+      $('tvgo').addEventListener('click', close);
     };
 
     requestAnimationFrame(frame);

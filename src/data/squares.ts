@@ -25,7 +25,7 @@ export const SQUARE_META: Record<SquareType, SquareMeta> = {
     short: 'CABINET',
     icon: '🤝',
     color: 0xd9692a,
-    desc: 'Cabinet briefing. Governing parties gain +2 ⭐ capital; opposition parties draw a card.',
+    desc: 'Cabinet briefing. Governing parties gain +2 ⭐ capital; opposition parties draw a STRATEGY card; independents gain +2 popularity.',
   },
   midterm: {
     name: 'Midterm Convention',
@@ -33,6 +33,13 @@ export const SQUARE_META: Record<SquareType, SquareMeta> = {
     icon: '🎪',
     color: 0x14967d,
     desc: 'The first party to reach this square each year reveals a Global Crisis that hits every party. Landing here exactly: party convention, +4 popularity and +2 ⭐.',
+  },
+  presidential: {
+    name: 'Presidential Election',
+    short: 'PRESIDENT',
+    icon: '🎖️',
+    color: 0x2f5fb3,
+    desc: 'The first party to reach this square each year sets off the presidential election: the most popular party at that moment wins the presidency and 2 extra vetoes a year. Landing here exactly: an audience at the palace, +2 ⭐.',
   },
   debate: {
     name: 'National Debate',
@@ -60,7 +67,7 @@ export const SQUARE_META: Record<SquareType, SquareMeta> = {
     short: 'CRISIS',
     icon: '⚠️',
     color: 0xc0302b,
-    desc: 'Draw a local crisis event. Ideology, reaction cards and ⭐ capital can soften the blow.',
+    desc: 'Draw a local crisis event. Ideology, reaction cards and ⭐ capital can soften the blow. Sometimes it is a ☢️ super crisis (more often for the two most popular parties): no ⭐ capital can buy it off, and cards only halve it.',
   },
   lobby: {
     name: 'Lobbyists & Factions',
@@ -74,7 +81,7 @@ export const SQUARE_META: Record<SquareType, SquareMeta> = {
     short: 'INQUIRY',
     icon: '🔍',
     color: 0xb8890f,
-    desc: 'Draft a report (+2 ⭐), leak a scandal card against a rival, launch an investigation (3 ⭐) or, in opposition, call a vote of no confidence.',
+    desc: 'Draft a report (+2 ⭐), leak a scandal card against a rival, launch an investigation (3 ⭐) or, on the opposition bench, call a vote of no confidence.',
   },
   advance: {
     name: 'Fast Track',
@@ -94,17 +101,22 @@ export const SQUARE_META: Record<SquareType, SquareMeta> = {
 
 if (isPT) for (const [k, t] of Object.entries(SQUARES_PT)) Object.assign(SQUARE_META[k as SquareType], t);
 
+/** Square of the Midterm Convention and, right after it, of the Presidential Election. */
+export const MIDTERM_SQUARE = 25;
+export const PRESIDENTIAL_SQUARE = 26;
+
 /** Fixed squares at fixed positions (square 0 is the Election, the summit of every year). */
 export const ANCHORS: Record<number, SquareType> = {
   0: 'election',
   1: 'formation',
-  25: 'midterm',
+  [MIDTERM_SQUARE]: 'midterm',
+  [PRESIDENTIAL_SQUARE]: 'presidential',
   37: 'debate',
 };
 
 /** How many of each regular square the board has (spread as evenly as possible around the ring). */
 export const SQUARE_QUOTAS: [SquareType, number][] = [
-  ['legislature', 17],
+  ['legislature', 16],
   ['media', 8],
   ['crisis', 6],
   ['lobby', 6],

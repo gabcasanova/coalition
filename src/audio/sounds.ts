@@ -11,6 +11,7 @@ export type SoundName =
   | 'wheelStop'
   | 'hop'
   | 'escalator'
+  | 'helicopter'
   | 'cardDraw'
   | 'cardDeal'
   | 'turn'
@@ -86,6 +87,15 @@ export const SOUNDS: Record<SoundName, (s: Synth, duration?: number) => void> = 
       s.noise({ at: t, dur: 0.03, vol: 0.05, filter: 'bandpass', freq: 2200, q: 4 });
   },
 
+  // The President's helicopter: the thump of the rotor blades over a turbine whine, fading in and out.
+  helicopter: (s, duration = 7) => {
+    s.tone({ freq: 420, to: 460, type: 'sawtooth', dur: duration, vol: 0.012, attack: 1, lowpass: 900 });
+    for (let t = 0; t < duration; t += 0.075) {
+      const swell = Math.min(1, t / 1.2, (duration - t) / 1.5);
+      s.noise({ at: t, dur: 0.06, vol: 0.09 * Math.max(0.15, swell), filter: 'lowpass', freq: 260 });
+    }
+  },
+
   // A card sliding off a deck.
   cardDraw: (s) => s.noise({ dur: 0.28, vol: 0.18, attack: 0.03, filter: 'bandpass', freq: 700, to: 3500, q: 1.2 }),
   cardDeal: (s) => s.noise({ dur: 0.09, vol: 0.1, attack: 0.01, filter: 'bandpass', freq: 1500, to: 4000, q: 1.5 }),
@@ -148,7 +158,7 @@ export const SOUNDS: Record<SoundName, (s: Synth, duration?: number) => void> = 
     brass(s, [-9, -2], 0.42, 0.9, 0.06);
   },
 
-  // The Prime Minister's portrait is revealed: a whoosh and a short fanfare.
+  // The Leader of Congress's portrait is revealed: a whoosh and a short fanfare.
   portrait: (s) => {
     s.noise({ dur: 0.5, vol: 0.12, attack: 0.25, filter: 'bandpass', freq: 400, to: 4000 });
     brass(s, [-9, -5, -2], 0.45, 0.25);

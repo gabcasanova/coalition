@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { THEME } from '../../assets/theme';
 import { sound } from '../../audio';
-import { settings } from '../../core/settings';
+import { animationSpeed } from '../../core/settings';
 import { benchOrder, TOTAL_SEATS } from '../../core/rules';
 import type { Player } from '../../core/types';
 import { L } from '../../i18n';
-import { easeInOut } from '../animation';
-import { AISLE_GAP, END_GAP, ROW_HEIGHTS, ROW_RADII } from '../layout';
+import { easeInOut, easeOutBack } from '../animation';
+import { AISLE_GAP, CROSSBENCH_GAP, END_GAP, ROW_HEIGHTS, ROW_RADII } from '../layout';
 import { mpGeometry } from '../models';
 import type { Stage } from '../Stage';
 import { titleTexture } from '../textures/board';
@@ -14,23 +14,45 @@ import { titleTexture } from '../textures/board';
 /** Seconds the MPs take to walk to new benches when the seats change. */
 export const RESEAT_SECONDS = 1.3;
 
+/** Where the chamber's blocks are after a re-seating (chamber angles; a block is missing if it has no seats). */
+export interface ChamberLayout {
+  aisleAngle: number;
+  hasAisle: boolean;
+  /** Centre angle of each block. */
+  centres: Partial<Record<BlockKind, number>>;
+}
+type BlockKind = 'opposition' | 'independents' | 'government';
+/** How far the MP model's origin sits above its feet (see mpGeometry). */
+const MP_FEET = 0.3;
+
 /**
- * The parliament hemicycle: 7 tiered rows of benches split into two blocks, opposition on the left and
- * government on the right, with a red carpet (the aisle) between them. Each of the 150 MPs is one instance of
- * an InstancedMesh, coloured by party.
+ * The parliament hemicycle: 7 tiered rows of benches split into three blocks: the opposition on the left, the
+ * independents' crossbench in the middle and the government on the right, with a red carpet (the aisle) between
+ * the government and the rest. Each of the 150 MPs is one instance of
+ * an InstancedMesh, coloured by party. An empty seat has no MP: its instance shrinks away, and grows back out of
+ * the bench when a party wins the seat.
  */
 export class Chamber {
-  /** Chamber angle of the aisle between the two blocks. */
+  /** Chamber angle of the aisle between the government and the rest. */
   aisleAngle = Math.PI / 2;
+  /** Centre angle of each block of benches. */
+  private blockCentres: ChamberLayout['centres'] = {};
   private readonly benches = new THREE.Group();
   private readonly benchMaterial = new THREE.MeshStandardMaterial({ color: THEME.benches, roughness: 0.8 });
-  private readonly aisle = new THREE.Group();
+  private readonly crossbenchMaterial = new THREE.MeshStandardMaterial({ color: THEME.crossbenches, roughness: 0.8 });
+  /** The red carpet (and the President's throne on it); +x runs along the carpet, away from the middle. */
+  readonly aisle = new THREE.Group();
   private readonly seats: THREE.InstancedMesh;
-  /** Per seat: where it is, its colour, which player sits there (−1 = nobody) and whether it is a government seat. */
+  /**
+   * Per MP (instance): where it is, its colour, its size (0 = no MP), which player it belongs to (−1 = nobody),
+   * whether it is a government MP, and its place in the left-to-right seating order.
+   */
   private seatPos: THREE.Vector3[] = [];
   private readonly seatColors: THREE.Color[] = [];
+  private readonly seatSize: number[] = [];
   private seatOwner: number[] = [];
   private seatGov: boolean[] = [];
+  private seatSlot: number[] = [];
   /** Bumped on every re-seating, so an older re-seating animation stops if a newer one starts. */
   private reseatGeneration = 0;
   private readonly matrix = new THREE.Matrix4();
@@ -56,7 +78,7 @@ export class Chamber {
     this.aisle.visible = false;
     stage.scene.add(this.aisle);
 
-    // 150 MPs, grey until parties take their seats.
+    // 150 MPs, all hidden until parties win their seats.
     this.seats = new THREE.InstancedMesh(
       mpGeometry(),
       new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.15 }),
@@ -64,12 +86,15 @@ export class Chamber {
     );
     this.seats.castShadow = true;
     const grey = new THREE.Color(THEME.emptySeat);
-    this.seatPos = this.layout(TOTAL_SEATS);
-    this.seatPos.forEach((p, i) => {
-      this.matrix.makeTranslation(p.x, p.y, p.z);
-      this.seats.setMatrixAt(i, this.matrix);
+    this.seatPos = this.layout(0, 0);
+    this.seatPos.forEach((_, i) => {
       this.seats.setColorAt(i, grey);
       this.seatColors.push(grey.clone());
+      this.seatSize.push(0);
+      this.seatOwner.push(-1);
+      this.seatGov.push(false);
+      this.seatSlot.push(i);
+      this.setSeat(i);
     });
     stage.scene.add(this.seats);
 
@@ -92,20 +117,36 @@ export class Chamber {
   }
 
   /**
-   * Seat positions for a chamber split into two blocks (opposition left, government right) with the aisle
-   * between them; each block's width follows its seat count. Rebuilds the bench tiers to match, updates
-   * `aisleAngle`, and returns the positions ordered left to right.
+   * Seat positions for a chamber split into blocks, left to right: the opposition, the independents' crossbench
+   * (which also holds any seats nobody has won yet) and the government. Each block's width follows its seat
+   * count; the red carpet runs between the government and the rest, a plain gap between the opposition and the
+   * crossbench. Rebuilds the bench tiers to match, updates `aisleAngle`, and returns the positions left to right.
    */
-  private layout(oppositionSeats: number): THREE.Vector3[] {
-    const governmentSeats = TOTAL_SEATS - oppositionSeats;
-    const gap = oppositionSeats > 0 && governmentSeats > 0 ? AISLE_GAP : 0;
-    // The benches span [END_GAP, π − END_GAP]; the free ends hold the leaders' daises. Government block: [END_GAP, split].
-    const split = END_GAP + (governmentSeats / TOTAL_SEATS) * (Math.PI - 2 * END_GAP - gap);
-    this.aisleAngle = split + gap / 2;
-    const blocks = [
-      { n: oppositionSeats, from: Math.PI - END_GAP, to: split + gap },
-      { n: governmentSeats, from: split, to: END_GAP },
-    ];
+  private layout(oppositionSeats: number, governmentSeats: number): THREE.Vector3[] {
+    const present = [
+      { kind: 'opposition' as const, n: oppositionSeats, material: this.benchMaterial, government: false },
+      {
+        kind: 'independents' as const,
+        n: TOTAL_SEATS - oppositionSeats - governmentSeats,
+        // Before there is a government every party sits together, on ordinary benches.
+        material: governmentSeats > 0 ? this.crossbenchMaterial : this.benchMaterial,
+        government: false,
+      },
+      { kind: 'government' as const, n: governmentSeats, material: this.benchMaterial, government: true },
+    ].filter((b) => b.n > 0);
+    const gapBefore = present.map((b, k): number => (k === 0 ? 0 : b.government ? AISLE_GAP : CROSSBENCH_GAP));
+    // The benches span [END_GAP, π − END_GAP]; the free ends hold the leaders' daises.
+    const usable = Math.PI - 2 * END_GAP - gapBefore.reduce((a, b) => a + b, 0);
+    this.aisleAngle = Math.PI / 2;
+    let angle = Math.PI - END_GAP;
+    const blocks = present.map((b, k) => {
+      angle -= gapBefore[k];
+      if (b.government && k > 0) this.aisleAngle = angle + AISLE_GAP / 2;
+      const from = angle;
+      angle -= (b.n / TOTAL_SEATS) * usable;
+      return { ...b, from, to: angle };
+    });
+    this.blockCentres = Object.fromEntries(blocks.map((b) => [b.kind, (b.from + b.to) / 2]));
 
     for (const child of [...this.benches.children]) {
       (child as THREE.Mesh).geometry.dispose();
@@ -144,7 +185,7 @@ export class Chamber {
           curveSegments: 32,
         });
         geometry.rotateX(-Math.PI / 2);
-        const tier = new THREE.Mesh(geometry, this.benchMaterial);
+        const tier = new THREE.Mesh(geometry, block.material);
         tier.receiveShadow = true;
         tier.castShadow = true;
         this.benches.add(tier);
@@ -157,62 +198,125 @@ export class Chamber {
 
   /**
    * Re-seats parliament for the current players: each party takes a stretch of benches (opposition left,
-   * government right) and the MPs glide there over RESEAT_SECONDS. Returns where the aisle ends up.
+   * independents, government right) over RESEAT_SECONDS. MPs keep their party where they can and glide to its new
+   * benches; a party's new MPs grow out of their seats and lost ones shrink away. Returns where the aisle ends up.
    */
-  update(players: Player[]): { aisleAngle: number; hasAisle: boolean } {
+  update(players: Player[]): ChamberLayout {
     const order = benchOrder(players);
     const governmentSeats = players.filter((p) => p.inGov).reduce((acc, p) => acc + p.seats, 0);
-    const targetPos = this.layout(TOTAL_SEATS - governmentSeats);
+    const oppositionSeats = players.filter((p) => p.inOpp).reduce((acc, p) => acc + p.seats, 0);
+    const slotPos = this.layout(oppositionSeats, governmentSeats);
 
-    const targetColors: THREE.Color[] = [];
-    const government: boolean[] = [];
-    const owner: number[] = [];
+    // The seats each party takes, left to right.
+    const slotsOf = new Map<number, number[]>();
+    let next = 0;
     for (const p of order) {
-      for (let i = 0; i < p.seats; i++) {
-        targetColors.push(new THREE.Color(p.party.color));
-        government.push(p.inGov);
-        owner.push(p.id);
+      const slots: number[] = [];
+      for (let j = 0; j < p.seats && next < TOTAL_SEATS; j++) slots.push(next++);
+      slotsOf.set(p.id, slots);
+    }
+
+    // Each party keeps as many of its current MPs as it still has seats (matched in seating order); the rest
+    // leave. Seats still needed are filled by hidden instances (which grow in place) or, failing that, by MPs
+    // another party lost (who cross over and change colour).
+    const target = new Array<number>(TOTAL_SEATS).fill(-1); // instance → slot (−1: no seat)
+    const byOrder = (a: number, b: number) => this.seatSlot[a] - this.seatSlot[b];
+    const needed: number[] = [];
+    const used = new Set<number>();
+    for (const [id, slots] of slotsOf) {
+      const mine = this.seatOwner
+        .map((owner, i) => (owner === id && this.seatSize[i] > 0 ? i : -1))
+        .filter((i) => i >= 0)
+        .sort(byOrder);
+      slots.forEach((slot, j) => {
+        if (j < mine.length) {
+          target[mine[j]] = slot;
+          used.add(mine[j]);
+        } else needed.push(slot);
+      });
+    }
+    const hidden = [...Array(TOTAL_SEATS).keys()].filter((i) => !used.has(i) && this.seatSize[i] === 0);
+    const leaving = [...Array(TOTAL_SEATS).keys()].filter((i) => !used.has(i) && this.seatSize[i] > 0).sort(byOrder);
+    for (const slot of needed) {
+      const i = hidden.length ? hidden.pop()! : leaving.shift()!;
+      target[i] = slot;
+    }
+
+    const slotOwner: number[] = [];
+    const slotGov: boolean[] = [];
+    const slotColor: THREE.Color[] = [];
+    for (const p of order) {
+      for (const slot of slotsOf.get(p.id)!) {
+        slotOwner[slot] = p.id;
+        slotGov[slot] = p.inGov;
+        slotColor[slot] = new THREE.Color(p.party.color);
       }
     }
-    while (targetColors.length < TOTAL_SEATS) {
-      targetColors.push(new THREE.Color(THEME.emptySeat));
-      government.push(false);
-      owner.push(-1);
-    }
-    this.seatOwner = owner;
-    this.seatGov = government;
 
     const hasAisle = governmentSeats > 0 && governmentSeats < TOTAL_SEATS;
     const fromAngle = this.aisle.visible ? this.aisle.rotation.y : this.aisleAngle;
     const toAngle = this.aisleAngle;
     this.aisle.visible = hasAisle;
 
-    const generation = ++this.reseatGeneration;
     const fromPos = this.seatPos.map((v) => v.clone());
+    const toPos = fromPos.map((p, i) => (target[i] >= 0 ? slotPos[target[i]] : p));
     const fromColors = this.seatColors.map((c) => c.clone());
+    const toColors = fromColors.map((c, i) => (target[i] >= 0 ? slotColor[target[i]] : c));
+    const fromSize = [...this.seatSize];
+    const toSize = target.map((slot) => (slot >= 0 ? 1 : 0));
+    // MPs who appear grow in place one after another, left to right; nobody slides in from a hidden spot.
+    const growing = target
+      .map((slot, i) => (slot >= 0 && fromSize[i] === 0 ? i : -1))
+      .filter((i) => i >= 0)
+      .sort((a, b) => target[a] - target[b]);
+    const growRank = new Map(growing.map((i, j) => [i, growing.length > 1 ? j / (growing.length - 1) : 0]));
+    for (const i of growing) {
+      fromPos[i].copy(toPos[i]);
+      fromColors[i].copy(toColors[i]);
+    }
+    for (let i = 0; i < TOTAL_SEATS; i++) {
+      this.seatOwner[i] = target[i] >= 0 ? slotOwner[target[i]] : -1;
+      this.seatGov[i] = target[i] >= 0 ? slotGov[target[i]] : false;
+      if (target[i] >= 0) this.seatSlot[i] = target[i];
+    }
+
+    const generation = ++this.reseatGeneration;
     void this.stage.tween(RESEAT_SECONDS, (k) => {
       if (generation !== this.reseatGeneration) return; // a newer re-seating took over
       const e = easeInOut(k);
       for (let i = 0; i < TOTAL_SEATS; i++) {
-        this.seatPos[i].lerpVectors(fromPos[i], targetPos[i], e);
-        this.setSeat(i, Math.sin(k * Math.PI) * 0.8); // a little hop on the way
-        this.seatColors[i].copy(fromColors[i]).lerp(targetColors[i], e);
+        const rank = growRank.get(i);
+        if (rank !== undefined) {
+          this.seatSize[i] = Math.max(0, easeOutBack(THREE.MathUtils.clamp(k * 1.8 - rank * 0.8, 0, 1)));
+        } else {
+          this.seatSize[i] = fromSize[i] + (toSize[i] - fromSize[i]) * e;
+        }
+        this.seatPos[i].lerpVectors(fromPos[i], toPos[i], e);
+        const moving = rank === undefined && toSize[i] > 0 && fromPos[i].distanceToSquared(toPos[i]) > 1e-4;
+        this.setSeat(i, moving ? Math.sin(k * Math.PI) * 0.8 : 0); // a little hop on the way
+        this.seatColors[i].copy(fromColors[i]).lerp(toColors[i], e);
         this.seats.setColorAt(i, this.seatColors[i]);
       }
       this.seats.instanceMatrix.needsUpdate = true;
       this.seats.instanceColor!.needsUpdate = true;
       this.aisle.rotation.y = fromAngle + (toAngle - fromAngle) * e;
     });
-    return { aisleAngle: this.aisleAngle, hasAisle };
+    return { aisleAngle: this.aisleAngle, hasAisle, centres: this.blockCentres };
   }
 
-  /** Writes one seat's matrix: its bench position, a lift for government MPs, plus an optional hop and sideways tilt. */
+  /**
+   * Writes one MP's matrix: its bench position, its size (growing from its feet), a lift for government MPs, plus
+   * an optional hop and sideways tilt.
+   */
   private setSeat(i: number, hop = 0, tilt = 0): void {
     const p = this.seatPos[i];
     const government = this.seatGov[i];
-    this.matrix.makeTranslation(p.x, p.y + hop + (government ? 0.18 : 0), p.z);
+    const size = Math.max(this.seatSize[i], 1e-3);
+    // The model's origin is MP_FEET above its feet: keep the feet on the bench while it scales.
+    this.matrix.makeTranslation(p.x, p.y + hop + (government ? 0.18 : 0) - MP_FEET * (1 - size), p.z);
     if (tilt) this.matrix.multiply(this.tilt.makeRotationZ(tilt));
     if (government) this.matrix.multiply(this.tilt.makeScale(1.1, 1.25, 1.1));
+    this.matrix.multiply(this.tilt.makeScale(size, size, size));
     this.seats.setMatrixAt(i, this.matrix);
   }
 
@@ -276,7 +380,7 @@ export class Chamber {
     const stagger = 0.12;
     const p = new THREE.Vector3();
 
-    sound.play('footsteps', 2.8 / settings.speed);
+    sound.play('footsteps', 2.8 / animationSpeed());
     await this.stage.tween(2.8, (k) => {
       movers.forEach((i, j) => {
         // Each MP sets off a little after the previous one.
@@ -305,7 +409,11 @@ export class Chamber {
     return c.divideScalar(mine.length);
   }
 
+  /** A party's MPs, in seating order. */
   private seatsOf(id: number): number[] {
-    return this.seatOwner.map((owner, i) => (owner === id ? i : -1)).filter((i) => i >= 0);
+    return this.seatOwner
+      .map((owner, i) => (owner === id ? i : -1))
+      .filter((i) => i >= 0)
+      .sort((a, b) => this.seatSlot[a] - this.seatSlot[b]);
   }
 }

@@ -84,20 +84,29 @@ export async function legislature(game: Engine, p: Player): Promise<void> {
     );
     for (const q of game.players) {
       if (q === p || !q.inGov || q.isPM || votesFor(q, bill, p)) continue;
-      const backlash = Math.max(1, Math.round((R.axisDistance(q.party.axes, bill.target!) - 1) * 2));
+      // Swallowing a bill costs a distant partner more than a close ally, so distant partners rebel more.
+      const leader = game.pm() ?? p;
+      const backlash = Math.max(
+        1,
+        Math.round(
+          (R.axisDistance(q.party.axes, bill.target!) - 1) *
+            2 *
+            R.loyaltyCost(R.partyDistance(q.party.axes, leader.party.axes)),
+        ),
+      );
       const gov = game.players.filter((x) => x.inGov).reduce((s, x) => s + x.seats, 0);
       const safe = gov - q.seats >= R.MAJORITY;
       const strikes = game.rebellions.get(q.id) ?? 0;
       const risk = Math.min(0.95, (safe ? 0.6 : 0.25) + strikes * 0.3);
       const pm = game.pm();
-      const pmRef = pm ? the(pm) : L('the Prime Minister', 'o Primeiro-Ministro');
+      const pmRef = pm ? the(pm) : L('the Leader of Congress', 'o Líder do Congresso');
       const k = await game.ask(q, {
         title: L(`Coalition vote: ${bill.name}`, `Votação da coalizão: ${bill.name}`),
         body: L(
           `Your coalition partner ${the(p)} has introduced a <b>coalition bill</b>, but your supporters dislike it.
           <ul class="choices">
             <li><b>Back the coalition:</b> vote YES. Your supporters grumble (−${backlash} popularity), but you keep your place in government.</li>
-            <li><b>Rebel:</b> vote NO. Your supporters approve, but ${pmRef} may <b>expel you from the government</b>: you would lose your ministries and join the opposition.${strikes ? ` You have already rebelled ${strikes === 1 ? 'once' : `${strikes} times`}.` : ''}</li>
+            <li><b>Rebel:</b> vote NO. Your supporters approve, but ${pmRef} may <b>expel you from the government</b>: you would lose your ministries and sit as an independent.${strikes ? ` You have already rebelled ${strikes === 1 ? 'once' : `${strikes} times`}.` : ''}</li>
           </ul>`,
           `Seu aliado ${the(p)} apresentou um <b>projeto da coalizão</b>, mas seus apoiadores não gostam dele.
           <ul class="choices">
@@ -206,8 +215,13 @@ export async function legislature(game: Engine, p: Player): Promise<void> {
   let vetoGain = 0;
   if (tally.yes >= R.MAJORITY) {
     for (const q of game.players) {
-      if (q === p || tally.yesIds.has(q.id) || q.capital < R.VETO_COST || game.vetoYear.get(q.id) === game.year)
-        continue;
+      const vetoesLeft = game.vetoesLeft(q);
+      if (q === p || tally.yesIds.has(q.id) || q.capital < R.VETO_COST || vetoesLeft <= 0) continue;
+      const lastVeto = vetoesLeft === 1;
+      const vetoUse = L(
+        lastVeto ? 'uses your last veto this year' : `uses one of your ${vetoesLeft} vetoes this year`,
+        lastVeto ? 'usa seu último veto do ano' : `usa um dos seus ${vetoesLeft} vetos do ano`,
+      );
       const cheer = R.vetoApplause(q.party.axes, bill.target!);
       const threat = (game.isLeader(p) ? 3 : 0) + Math.max(0, delta) * 0.25 + (q.inGov !== p.inGov ? 1 : 0) + cheer;
       const cheerLine = cheer
@@ -225,12 +239,12 @@ export async function legislature(game: Engine, p: Player): Promise<void> {
           `${The(p)}'s bill has <b>${tally.yes}</b> votes, so it is about to pass. Your party voted against it.
           <ul class="choices">
             <li><b>Let it pass:</b> it becomes law. ${The(p)} earns +2 ⭐ capital and every governing party gains +1 popularity.</li>
-            <li><b>Veto it (costs you ${R.VETO_COST} ⭐, and uses your one veto for this year):</b> the bill is blocked and does <b>not</b> become law, so ${the(p)} gets no +2 ⭐ and the government gets no popularity bonus. ${cheerLine} If the bill is blocked, ${the(p)} wins no popularity from it.</li>
+            <li><b>Veto it (costs you ${R.VETO_COST} ⭐ and ${vetoUse}):</b> the bill is blocked and does <b>not</b> become law, so ${the(p)} gets no +2 ⭐ and the government gets no popularity bonus. ${cheerLine} If the bill is blocked, ${the(p)} wins no popularity from it.</li>
           </ul>`,
           `O projeto ${doP(p)} tem <b>${tally.yes}</b> votos e está prestes a passar. Seu partido votou contra.
           <ul class="choices">
             <li><b>Deixar passar:</b> vira lei. ${The(p)} ganha +2 ⭐ de capital e cada partido do governo ganha +1 de popularidade.</li>
-            <li><b>Vetar (custa ${R.VETO_COST} ⭐ e usa seu único veto do ano):</b> o projeto é barrado e <b>não</b> vira lei, então ${the(p)} não ganha os +2 ⭐ e o governo fica sem bônus de popularidade. ${cheerLine} Se o projeto for barrado, ${the(p)} não ganha popularidade com ele.</li>
+            <li><b>Vetar (custa ${R.VETO_COST} ⭐ e ${vetoUse}):</b> o projeto é barrado e <b>não</b> vira lei, então ${the(p)} não ganha os +2 ⭐ e o governo fica sem bônus de popularidade. ${cheerLine} Se o projeto for barrado, ${the(p)} não ganha popularidade com ele.</li>
           </ul>`,
         ),
         event: card,
@@ -251,7 +265,7 @@ export async function legislature(game: Engine, p: Player): Promise<void> {
       if (k === 1) {
         q.capital -= R.VETO_COST;
         vetoedBy = q;
-        game.vetoYear.set(q.id, game.year);
+        game.vetoesUsed.set(q.id, (game.vetoesUsed.get(q.id) ?? 0) + 1);
         vetoGain = cheer ? game.gainPop(q, cheer) : 0;
         break;
       }
@@ -260,6 +274,7 @@ export async function legislature(game: Engine, p: Player): Promise<void> {
 
   // Supporters only reward a bill that actually becomes law; a misaligned proposal angers them either way.
   const passed = !vetoedBy && tally.yes >= R.MAJORITY;
+  if (passed) game.lawsThisYear.push(bill);
   const got = passed || delta < 0 ? game.gainPop(p, delta) : 0;
   const no = R.TOTAL_SEATS - tally.yes;
   const stance =
@@ -357,7 +372,7 @@ export async function legislature(game: Engine, p: Player): Promise<void> {
   for (const r of stillRebels) await disciplineRebel(game, r, bill);
 }
 
-/** The Prime Minister decides whether a coalition partner who voted against a coalition bill is warned or expelled. */
+/** The Leader of Congress decides whether a coalition partner who voted against a coalition bill is warned or expelled. */
 export async function disciplineRebel(game: Engine, r: Player, bill: Card): Promise<void> {
   const pm = game.pm();
   if (!pm || pm === r || !r.inGov) return;
@@ -421,8 +436,8 @@ export async function disciplineRebel(game: Engine, r: Player, bill: Card): Prom
     pm,
     L(`expelled ${the(r)} from the government`, `expulsou ${the(r)} do governo`),
     L(
-      `${The(r)} voted against the <i>${bill.name}</i> one time too many. It loses ${lost.length ? `its ministries (${titles}), which pass to ${the(pm)},` : 'its place at the cabinet table'} and joins the opposition. The government now holds ${after} seats${keeps ? ', still a majority' : ', a <b>minority government</b> that will struggle to pass laws'}.`,
-      `${The(r)} votou contra <i>${bill.name}</i> uma vez a mais. Perde ${lost.length ? `seus ministérios (${titles}), que passam ${aoP(pm)},` : 'seu lugar no gabinete'} e vai para a oposição. O governo agora tem ${after} cadeiras${keeps ? ', ainda uma maioria' : ', um <b>governo de minoria</b> que terá dificuldade para aprovar leis'}.`,
+      `${The(r)} voted against the <i>${bill.name}</i> one time too many. It loses ${lost.length ? `its ministries (${titles}), which pass to ${the(pm)},` : 'its place at the cabinet table'} and sits as an independent. The government now holds ${after} seats${keeps ? ', still a majority' : ', a <b>minority government</b> that will struggle to pass laws'}.`,
+      `${The(r)} votou contra <i>${bill.name}</i> uma vez a mais. Perde ${lost.length ? `seus ministérios (${titles}), que passam ${aoP(pm)},` : 'seu lugar no gabinete'} e passa a ser independente. O governo agora tem ${after} cadeiras${keeps ? ', ainda uma maioria' : ', um <b>governo de minoria</b> que terá dificuldade para aprovar leis'}.`,
     ),
     'event',
   );
@@ -442,6 +457,8 @@ export function countVotes(game: Engine, bill: Card, intro: Player, forced: Set<
 
 export function votesFor(q: Player, bill: Card, intro: Player): boolean {
   const d = R.axisDistance(q.party.axes, bill.target!);
-  if (intro.isPM && q.inGov && d <= 1.75) return true; // coalition loyalty
+  // Coalition loyalty: partners back the Leader of Congress's bills further from their own views the closer
+  // they are to the Leader.
+  if (intro.isPM && q.inGov && d <= R.coalitionLoyalty(R.partyDistance(q.party.axes, intro.party.axes))) return true;
   return d <= 1.25;
 }

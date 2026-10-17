@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { DeckKind, SquareType } from '../core/types';
 
-/** Image slots: textures on the board, the decks, the wheel, the table and the PM's portrait. */
+/** Image slots: textures on the board, the decks, the wheel, the table and the leaders' portraits. */
 export type ImageSlot =
   `tile.${SquareType}` | `deck.${DeckKind}` | 'wheel' | 'table.wood' | 'table.felt' | 'portrait.leader';
 

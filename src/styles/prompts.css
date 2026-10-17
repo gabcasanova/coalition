@@ -325,6 +325,43 @@
   width: 128px;
   min-height: 172px;
 }
+/* The yearly draft: click bills to keep them. */
+.draftcard {
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    transform 0.15s,
+    opacity 0.15s,
+    box-shadow 0.15s;
+}
+.draftcard:hover {
+  transform: translateY(-4px);
+}
+.draftcard.on {
+  transform: translateY(-8px);
+  box-shadow:
+    0 0 0 3px var(--good),
+    0 10px 24px rgba(76, 209, 133, 0.35);
+}
+.full .draftcard:not(.on) {
+  opacity: 0.45;
+}
+/* The draft's buttons stay in view while the bills scroll. */
+.draft .opts {
+  position: sticky;
+  bottom: -18px;
+  margin: 0 -20px -18px;
+  padding: 12px 20px;
+  background: var(--panel-solid);
+  border-top: 1px solid var(--line);
+}
+.draft .dealt .card {
+  width: 118px;
+  min-height: 160px;
+}
 @keyframes dealin {
   from {
     opacity: 0;

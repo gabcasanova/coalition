@@ -46,9 +46,11 @@ export const WHEEL_R = 6;
 /** Radius and height of the 7 tiered bench rows. */
 export const ROW_RADII = Array.from({ length: 7 }, (_, i) => 8.3 + i * 1.3);
 export const ROW_HEIGHTS = ROW_RADII.map((_, i) => 0.25 + i * 0.26);
-/** Angle of the aisle (red carpet) between the government and opposition blocks. */
+/** Angle of the aisle (red carpet) between the government block and the rest of the chamber. */
 export const AISLE_GAP = 0.32;
-/** Angle left free at each end of the hemicycle for the Prime Minister's and the Opposition Leader's daises. */
+/** Angle of the plain gap between the opposition block and the independents' crossbench. */
+export const CROSSBENCH_GAP = 0.09;
+/** Angle left free at each end of the hemicycle for the Leader of Congress's and the Opposition Leader's daises. */
 export const END_GAP = 0.28;
 /** Leader figures are big peg people. */
 export const LEADER_SCALE = 2.2;

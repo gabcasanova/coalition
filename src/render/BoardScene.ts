@@ -3,17 +3,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { THEME } from '../assets/theme';
 import { sound } from '../audio';
 import { oppositionLeader } from '../core/rules';
-import { settings } from '../core/settings';
+import { animationSpeed } from '../core/settings';
 import type { CardFace, DeckKind, PartyDef, Player } from '../core/types';
+import type { PointKind } from '../core/engine';
 import { L } from '../i18n';
 import { Tweens } from './animation';
+import { PODIUM_POS } from './layout';
 import { CameraDirector, type PawnShot } from './CameraDirector';
 import { BackWall } from './parts/BackWall';
-import { Chamber } from './parts/Chamber';
+import { Chamber, RESEAT_SECONDS } from './parts/Chamber';
 import { Decks } from './parts/Decks';
 import { Leaders } from './parts/Leaders';
 import { Pawns } from './parts/Pawns';
-import { Podium } from './parts/Podium';
+import { CELEBRATION_SECONDS, Podium } from './parts/Podium';
+import { Presidency } from './parts/Presidency';
 import { buildTable } from './parts/Table';
 import { Track } from './parts/Track';
 import { Wheel } from './parts/Wheel';
@@ -45,6 +48,7 @@ export class BoardScene {
   private readonly chamber: Chamber;
   private readonly leaders: Leaders;
   private readonly backWall: BackWall;
+  private readonly presidency: Presidency;
   private readonly podium: Podium;
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
@@ -89,6 +93,7 @@ export class BoardScene {
     this.chamber = new Chamber(stage);
     this.leaders = new Leaders(stage, this.chamber);
     this.backWall = new BackWall(stage);
+    this.presidency = new Presidency(stage, this.chamber.aisle);
     this.podium = new Podium(stage);
     this.scene.updateMatrixWorld(true);
     this.pawns = new Pawns(stage, this.track);
@@ -178,12 +183,17 @@ export class BoardScene {
 
   /** Re-seats parliament and updates everything that depends on it (scoreboards, portrait, leaders). */
   updateSeats(players: Player[]): void {
-    const { aisleAngle, hasAisle } = this.chamber.update(players);
-    this.backWall.update(players, aisleAngle, hasAisle);
+    this.backWall.update(players, this.chamber.update(players));
     this.leaders.update(players);
+    this.presidency.update(players);
   }
 
-  updatePodium(rows: { party: PartyDef; wins: number }[]): void {
+  /** Resolves once the MPs have finished re-seating (and growing). */
+  reseated(): Promise<void> {
+    return this.tweens.wait(RESEAT_SECONDS + 0.3);
+  }
+
+  updatePodium(rows: { party: PartyDef; points: number }[]): void {
     this.podium.update(rows);
   }
 
@@ -221,7 +231,46 @@ export class BoardScene {
     await this.chamber.floorCross(fromId, toId, n, toColor);
   }
 
-  /** The new Prime Minister walks to their chair, then their official portrait is revealed. */
+  /**
+   * A party has just scored a point (Congress, the presidency or Legislative MVP): the camera turns to the podium, a headline pops
+   * up over it and the winner's statue celebrates on its step.
+   */
+  async podiumWin(party: PartyDef, kind: PointKind): Promise<void> {
+    if (this.director.cinematic) {
+      this.director.frame({
+        pos: PODIUM_POS.clone().add(new THREE.Vector3(0, 6.2, 12.5)),
+        target: PODIUM_POS.clone().add(new THREE.Vector3(0, 3.6, 0)),
+        rate: 2.4,
+      });
+      await this.tweens.wait(0.9);
+    }
+    sound.play('good');
+    const headline = this.showHeadline(
+      kind === 'presidential'
+        ? L('🏆 +1 POINT · PRESIDENCY', '🏆 +1 PONTO · PRESIDÊNCIA')
+        : kind === 'legislative'
+          ? L('🏆 +1 POINT · LAWS', '🏆 +1 PONTO · LEIS')
+          : L('🏆 +1 POINT · CONGRESS', '🏆 +1 PONTO · CONGRESSO'),
+      THEME.gold,
+      PODIUM_POS.clone().add(new THREE.Vector3(0, 6.2, 0)),
+    );
+    const celebration = this.podium.celebrate(party);
+    await this.tweens.add(CELEBRATION_SECONDS, (k) => headline.frame(k, 1 - Math.max(0, (k - 0.85) / 0.15)));
+    await celebration;
+    headline.remove();
+    await this.tweens.wait(0.3);
+  }
+
+  /** The new President flies in and takes the throne, then their official portrait is revealed. */
+  async presidentTakesOffice(id: number, players: Player[]): Promise<void> {
+    const president = players.find((q) => q.id === id);
+    if (!president) return;
+    await this.presidency.arrive(president, true);
+    await this.tweens.wait(0.3);
+    await this.backWall.revealPresident(president.party);
+  }
+
+  /** The new Leader of Congress walks to their chair, then their official portrait is revealed. */
   async pmTakesSeat(id: number, players: Player[]): Promise<void> {
     const pm = players.find((q) => q.id === id);
     if (!pm) return;
@@ -252,15 +301,23 @@ export class BoardScene {
     await this.tweens.wait(0.5);
   }
 
-  /** Puts both leaders straight in their chairs and shows the PM's portrait (no animation): behind the title screen. */
+  /**
+   * Puts both leaders straight in their chairs (and the President on the throne) and shows their portraits, with
+   * no animation: behind the title screen.
+   */
   seatLeaders(players: Player[]): void {
     const pm = players.find((q) => q.isPM);
     const leader = oppositionLeader(players);
+    const president = players.find((q) => q.isPresident);
     if (pm) {
       this.leaders.place('pm', pm);
       this.backWall.showPortrait(pm.party);
     }
     if (leader) this.leaders.place('opp', leader);
+    if (president) {
+      this.presidency.place(president);
+      this.backWall.showPresident(president.party);
+    }
   }
 
   /** A big glowing headline over the chamber, bobbing and fading with `frame(k, fade)`. */
@@ -297,8 +354,8 @@ export class BoardScene {
   private tick = (time: number) => {
     this.timer.update(time);
     const dt = THREE.MathUtils.clamp(this.timer.getDelta(), 0, MAX_DT);
-    this.tweens.update(dt, settings.speed);
-    this.director.update(dt, settings.speed);
+    this.tweens.update(dt, animationSpeed());
+    this.director.update(dt, animationSpeed());
     const t = this.director.time;
     this.pawns.update(t);
     this.wheel.update(t);

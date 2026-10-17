@@ -1,4 +1,7 @@
 /** What the engine exchanges with the presentation layer (3D scene + HUD). */
+/** How a point was scored. */
+export type PointKind = 'parliamentary' | 'presidential' | 'legislative';
+
 import type { DistrictResult } from '../electoral';
 import {
   type Card,
@@ -17,8 +20,8 @@ export interface PlayerSetup {
 
 export interface ScoreRow {
   player: Player;
-  /** Elections won: the main ranking. */
-  wins: number;
+  /** Points (parliamentary elections + presidencies won): the main ranking. */
+  points: number;
   /** Governance Score: the tiebreak. */
   score: number;
   detail: string;
@@ -44,6 +47,22 @@ export interface ElectionResult {
   rows: ElectionRow[];
   /** Results district by district (for the election-night map). */
   districts: DistrictResult[];
+}
+
+/** One party's line on presidential election night. */
+export interface PresidentialRow {
+  playerId: number;
+  popularity: number;
+  /** Share of the national vote, in percent (it follows popularity). */
+  share: number;
+}
+
+export interface PresidentialResult {
+  year: number;
+  winnerId: number;
+  /** The previous President's party (−1: the Provisional President). */
+  previousId: number;
+  rows: PresidentialRow[];
 }
 
 export interface GameResult {
@@ -72,8 +91,8 @@ export interface GameView {
   log(html: string, tone?: Tone): void;
   /** Present a story and wait until the viewer has read it (or clicked on). */
   story(s: Story): Promise<void>;
-  /** Deal the opening hands: cards fly from the LAW deck to every pawn; humans then see their bills. */
-  dealOpening(perPlayer: number): Promise<void>;
+  /** Deal each year's draft: `perPlayer` cards fly from the LAW deck to every pawn (the parties then keep some). */
+  dealHands(perPlayer: number, year: number): Promise<void>;
   /** Big "now playing" announcement at the start of a turn. */
   turnStart(playerId: number): Promise<void>;
   setActive(playerId: number): void;
@@ -85,7 +104,15 @@ export interface GameView {
   flashTile(index: number): void;
   banner(title: string, text: string, tone?: Tone): Promise<void>;
   seatsChanged(): void;
-  /** A new Prime Minister walks to their seat at the end of the chamber. */
+  /** Like seatsChanged, but waits while the MPs grow into (or leave) their seats. */
+  seatsGrow(): Promise<void>;
+  /** Presidential election night on TV: the national count, in graphs. Resolves when the viewer continues. */
+  presidentialNight(result: PresidentialResult): Promise<void>;
+  /** The new President flies in by helicopter, climbs down to the carpet and takes the throne. */
+  presidentTakesOffice(playerId: number): Promise<void>;
+  /** A party has just scored a point (Congress, the presidency or Legislative MVP): it climbs the standings podium. */
+  podiumWin(playerId: number, kind: PointKind): Promise<void>;
+  /** A new Leader of Congress walks to their seat at the end of the chamber. */
   pmTakesSeat(playerId: number): Promise<void>;
   /** The opposition rises on its benches and its leader walks to their seat. */
   oppositionForms(leaderId: number, memberIds: number[]): Promise<void>;

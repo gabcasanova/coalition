@@ -249,9 +249,57 @@ export const CRISIS_EVENTS: EventDef[] = [
   },
 ];
 
+/**
+ * Super crises: now and then a Crisis square draws one of these instead (more often for the two most popular
+ * parties). They hit harder, and there is no paying your way out: ⭐ capital can't buy them off, and reaction
+ * cards and ministries can at most halve them.
+ */
+export const SUPER_CRISES: EventDef[] = [
+  {
+    key: 'tapes',
+    name: 'The Secret Tapes',
+    flavor: 'Hours of recordings of your leadership trading favours for donations are released at midnight.',
+    tags: ['scandal', 'corruption'],
+    text: 'There is no fine big enough and no spin good enough: the tapes cost you 14 popularity, and 30% more if your party is known for centralising power.',
+    delta: (p) => loss(14, m(p, 'inst', 1, 1.3)),
+  },
+  {
+    key: 'arrest',
+    name: 'Leader Arrested at Dawn',
+    flavor: 'Police cars outside your leader’s house, live on every channel.',
+    tags: ['scandal'],
+    text: 'Whatever the courts decide, the pictures are already everywhere: you lose 15 popularity.',
+    delta: () => -15,
+  },
+  {
+    key: 'bankcollapse',
+    name: 'Bank Collapse',
+    flavor: 'A bank your party fought to deregulate goes under, taking thousands of pensions with it.',
+    tags: ['econ'],
+    text: 'Savers want someone to blame: you lose 12 popularity. Free-market parties, who cut the rules, lose 40% more; interventionist parties a quarter less.',
+    delta: (p) => loss(12, m(p, 'econ', 0.75, 1.4)),
+  },
+  {
+    key: 'chemicaldisaster',
+    name: 'Chemical Plant Disaster',
+    flavor: 'A toxic cloud drifts over a city from a plant your party promised was safe.',
+    tags: ['env'],
+    text: 'Evacuations, hospitals, funerals: you lose 13 popularity. Parties that pushed for industry lose 40% more; ecologist parties, who warned about it, lose 30% less.',
+    delta: (p) => loss(13, m(p, 'env', 1.4, 0.7)),
+  },
+  {
+    key: 'blackout',
+    name: 'Three-Day Blackout',
+    flavor: 'The national grid fails in a heatwave. Hospitals run on generators.',
+    tags: ['econ'],
+    text: 'In government you are blamed for every dark hospital ward and lose 16 popularity; in opposition you still lose 9 for the plans you never made.',
+    delta: (p) => (p.inGov ? -16 : -9),
+  },
+];
+
 // Brazilian Portuguese: replace the card text (rules stay the same).
 if (isPT) {
-  for (const e of [...GLOBAL_CRISES, ...CRISIS_EVENTS]) {
+  for (const e of [...GLOBAL_CRISES, ...CRISIS_EVENTS, ...SUPER_CRISES]) {
     const t = EVENTS_PT[e.key];
     if (!t) continue;
     Object.assign(e, { name: t.name, flavor: t.flavor, text: t.text });

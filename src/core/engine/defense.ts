@@ -12,6 +12,11 @@ export interface Hit {
   options?: Mitigation[];
   /** Damage dealt by a rival (leaks, investigations): it can be reduced but not avoided entirely. */
   attack?: boolean;
+  /**
+   * A super crisis: no ⭐ capital can buy it off (no paid options, no Bailout card), and cards and ministries can
+   * at most halve it.
+   */
+  superCrisis?: boolean;
 }
 
 /**
@@ -23,8 +28,17 @@ export async function hit(game: Engine, p: Player, h: Hit): Promise<void> {
   const tags = h.tags;
   const title = `<i>${h.ev.title}</i>`;
   const hitBy = L(`was hit by ${title}`, `foi atingido por ${title}`);
+  // Neither a rival's attack nor a super crisis can be escaped entirely.
+  const unavoidable = h.attack || h.superCrisis;
   game.view.spotlight(p.id);
-  if (p.portfolios.includes('environment') && tags.includes('env')) {
+  let shield = '';
+  if (p.portfolios.includes('environment') && tags.includes('env') && h.superCrisis) {
+    loss = Math.ceil(loss / 2);
+    shield = L(
+      `As Minister of Environment, ${the(p)} has the emergency plans ready and halves the damage. `,
+      `Com o Ministério do Meio Ambiente, ${the(p)} tem os planos de emergência prontos e corta o dano pela metade. `,
+    );
+  } else if (p.portfolios.includes('environment') && tags.includes('env')) {
     await game.tell(
       p,
       hitBy,
@@ -37,7 +51,6 @@ export async function hit(game: Engine, p: Player, h: Hit): Promise<void> {
     );
     return;
   }
-  let shield = '';
   if (p.portfolios.includes('interior') && (tags.includes('scandal') || tags.includes('corruption'))) {
     loss = Math.ceil(loss / 2);
     shield = L(
@@ -88,15 +101,17 @@ export async function hit(game: Engine, p: Player, h: Hit): Promise<void> {
     const cancels =
       (c.reaction === 'spin' && (tags.includes('scandal') || tags.includes('media'))) ||
       (c.reaction === 'gag' && (tags.includes('scandal') || tags.includes('corruption')));
-    if (cancels && h.attack) {
+    if (cancels && unavoidable) {
       const after = Math.ceil(loss / 2);
       entries.push({
         opt: {
           label: play,
-          detail: L(
-            `A rival's attack can't be killed outright: loss reduced to ${after}`,
-            `Ataque de rival não se anula por completo: perda reduzida para ${after}`,
-          ),
+          detail: h.superCrisis
+            ? L(`Too big to bury: loss reduced to ${after}`, `Grande demais para abafar: perda reduzida para ${after}`)
+            : L(
+                `A rival's attack can't be killed outright: loss reduced to ${after}`,
+                `Ataque de rival não se anula por completo: perda reduzida para ${after}`,
+              ),
           card: c,
           ai: -after - W_CARD,
         },
@@ -105,10 +120,15 @@ export async function hit(game: Engine, p: Player, h: Hit): Promise<void> {
           return settle(
             after,
             played,
-            L(
-              'The card blunts the attack, but a rival’s leak cannot be buried completely.',
-              'A carta amortece o ataque, mas um vazamento de rival não pode ser abafado por completo.',
-            ),
+            h.superCrisis
+              ? L(
+                  'The card blunts the story, but a crisis this big cannot be buried.',
+                  'A carta amortece a história, mas uma crise deste tamanho não pode ser abafada.',
+                )
+              : L(
+                  'The card blunts the attack, but a rival’s leak cannot be buried completely.',
+                  'A carta amortece o ataque, mas um vazamento de rival não pode ser abafado por completo.',
+                ),
           );
         },
       });
@@ -134,7 +154,7 @@ export async function hit(game: Engine, p: Player, h: Hit): Promise<void> {
           return settle(after, played, L('The card halves the damage.', 'A carta corta o dano pela metade.'));
         },
       });
-    } else if (c.reaction === 'bailout' && !h.attack) {
+    } else if (c.reaction === 'bailout' && !unavoidable) {
       const cost = Math.ceil(loss / 2);
       entries.push({
         opt: {
@@ -160,14 +180,17 @@ export async function hit(game: Engine, p: Player, h: Hit): Promise<void> {
     }
   }
 
-  const mits: Mitigation[] = h.options ?? [
-    {
-      label: L('Hire a PR Team', 'Contratar uma Equipe de RP'),
-      cost: Math.max(1, Math.round(loss * 0.4)),
-      lossMult: 0.5,
-    },
-    { label: L('Call in Favours', 'Cobrar Favores'), cost: Math.ceil(loss / 3) + 1, lossMult: 0 },
-  ];
+  // No paying your way out of a super crisis.
+  const mits: Mitigation[] = h.superCrisis
+    ? []
+    : (h.options ?? [
+        {
+          label: L('Hire a PR Team', 'Contratar uma Equipe de RP'),
+          cost: Math.max(1, Math.round(loss * 0.4)),
+          lossMult: 0.5,
+        },
+        { label: L('Call in Favours', 'Cobrar Favores'), cost: Math.ceil(loss / 3) + 1, lossMult: 0 },
+      ]);
   for (const m of mits) {
     const after = m.reduceTo !== undefined ? Math.min(loss, m.reduceTo) : Math.ceil(loss * (m.lossMult ?? 1));
     const gain = m.gain ?? 0;
@@ -220,8 +243,8 @@ export async function hit(game: Engine, p: Player, h: Hit): Promise<void> {
     p,
     h.ev.title,
     L(
-      `You stand to lose <b>${loss}</b> popularity.${h.attack ? ' This is an attack by a rival party: you can soften it, but not escape it completely.' : ''} How do you respond?`,
-      `Você pode perder <b>${loss}</b> de popularidade.${h.attack ? ' É um ataque de um partido rival: dá para amortecer, mas não escapar totalmente.' : ''} Como você reage?`,
+      `You stand to lose <b>${loss}</b> popularity.${h.attack ? ' This is an attack by a rival party: you can soften it, but not escape it completely.' : ''}${h.superCrisis ? " <b>This is a super crisis: you can't pay your way out of it</b>, and no card buries it completely." : ''} How do you respond?`,
+      `Você pode perder <b>${loss}</b> de popularidade.${h.attack ? ' É um ataque de um partido rival: dá para amortecer, mas não escapar totalmente.' : ''}${h.superCrisis ? ' <b>É uma supercrise: não dá para comprar uma saída</b>, e nenhuma carta a abafa por completo.' : ''} Como você reage?`,
     ),
     entries,
     { event: h.ev },

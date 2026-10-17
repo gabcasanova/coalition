@@ -40,4 +40,5 @@ function buildBoard(): SquareType[] {
 }
 
 /** The four fixed squares (they are drawn a little taller, with a gold border). */
-export const isAnchor = (t: SquareType) => t === 'election' || t === 'formation' || t === 'midterm' || t === 'debate';
+export const isAnchor = (t: SquareType) =>
+  t === 'election' || t === 'formation' || t === 'midterm' || t === 'presidential' || t === 'debate';

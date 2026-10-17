@@ -166,7 +166,7 @@ export const STRATEGY_CARDS: [CardDef, number][] = [
       key: 'noconf',
       kind: 'noconfidence',
       name: 'Vote of No Confidence',
-      text: 'Opposition only, on a Committee square: if the opposition holds 76+ seats, the government falls.',
+      text: 'Opposition bench only, on a Committee square: if the opposition and the independents siding with it hold 76+ seats, the government falls.',
     },
     3,
   ],

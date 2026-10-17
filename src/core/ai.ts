@@ -8,13 +8,14 @@ import type { Controller, Prompt } from './types';
  */
 export class AIController implements Controller {
   constructor(
-    /** Pause before each decision so the viewer can follow the news. */
+    /** Pause before each decision so the viewer can follow the news (0 = decide at once). */
     private readonly thinkMs = 350,
     private readonly noise = 0.6,
   ) {}
 
   async choose(prompt: Prompt): Promise<number> {
-    await sleep(paced(prompt.options.length > 1 ? this.thinkMs : this.thinkMs / 2));
+    // No pause at all for instant bots (simulations): even a zero-length timer would slow them down a lot.
+    if (this.thinkMs > 0) await sleep(paced(prompt.options.length > 1 ? this.thinkMs : this.thinkMs / 2));
     let best = -1;
     let bestScore = -Infinity;
     prompt.options.forEach((o, i) => {
@@ -26,5 +27,14 @@ export class AIController implements Controller {
       }
     });
     return Math.max(best, 0);
+  }
+
+  async chooseMany(prompt: Prompt, count: number): Promise<number[]> {
+    if (this.thinkMs > 0) await sleep(paced(this.thinkMs));
+    return prompt.options
+      .map((o, i) => ({ i, score: o.disabled ? -Infinity : o.ai + (Math.random() - 0.5) * this.noise }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, count)
+      .map((x) => x.i);
   }
 }

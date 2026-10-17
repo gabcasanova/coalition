@@ -100,3 +100,4 @@ export function lobbyText(lb: LobbyDef): string {
 }
 
 export const LABEL_CRISIS = L('NATIONAL CRISIS', 'CRISE NACIONAL');
+export const LABEL_SUPER_CRISIS = L('☢️ SUPER CRISIS', '☢️ SUPERCRISE');

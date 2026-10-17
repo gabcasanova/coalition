@@ -2,13 +2,14 @@
 import { L } from '../../i18n';
 import { runElection } from '../electoral';
 import * as R from '../rules';
-import { AXIS_KEYS, type Player } from '../types';
+import { AXIS_INFO, AXIS_KEYS, type Player } from '../types';
 import type { Engine } from './Engine';
-import { formGovernment } from './government';
-import { pn } from './text';
+import { coalitionVerdict, formGovernment } from './government';
+import { and, pn, the } from './text';
 import type { ElectionResult } from './view';
 
 export async function election(game: Engine, trigger: Player): Promise<void> {
+  game.onElection?.('parliamentary');
   for (const q of game.players) {
     if (q.isPM) q.stats.pmYears++;
     else if (q.inGov) q.stats.cabinetYears++;
@@ -21,6 +22,7 @@ export async function election(game: Engine, trigger: Player): Promise<void> {
     ),
     'event',
   );
+  await legislativeMvp(game);
   await game.view.banner(
     L(`🗳️ General Election — Year ${game.electionsHeld}`, `🗳️ Eleição Geral — Ano ${game.electionsHeld}`),
     L(
@@ -61,6 +63,7 @@ export async function election(game: Engine, trigger: Player): Promise<void> {
   };
   await game.view.electionNight(result);
   game.view.seatsChanged();
+  await game.view.podiumWin(yearWinner.id, 'parliamentary');
   for (const q of game.players) game.gainCapital(q, 3 + Math.floor(q.seats / 25));
   game.view.refresh();
   const summary = [...game.players]
@@ -69,8 +72,8 @@ export async function election(game: Engine, trigger: Player): Promise<void> {
     .join(' · ');
   game.view.log(
     L(
-      `Election results, Year ${game.electionsHeld}: ${summary}. ${pn(yearWinner)} wins the election (${yearWinner.stats.electionWins} so far).`,
-      `Resultado da eleição, Ano ${game.electionsHeld}: ${summary}. ${pn(yearWinner)} vence a eleição (${yearWinner.stats.electionWins} até agora).`,
+      `Election results, Year ${game.electionsHeld}: ${summary}. ${pn(yearWinner)} wins the election (${R.points(yearWinner.stats)} points so far).`,
+      `Resultado da eleição, Ano ${game.electionsHeld}: ${summary}. ${pn(yearWinner)} vence a eleição (${R.points(yearWinner.stats)} pontos até agora).`,
     ),
     'event',
   );
@@ -91,8 +94,8 @@ export async function election(game: Engine, trigger: Player): Promise<void> {
     await game.view.banner(
       L('The Final Election', 'A Eleição Final'),
       L(
-        'Five years have passed. The party that won the most elections takes the game.',
-        'Cinco anos se passaram. O partido que venceu mais eleições leva o jogo.',
+        'Five years have passed. The party with the most points (Congress and presidency) takes the game.',
+        'Cinco anos se passaram. O partido com mais pontos (Congresso e presidência) leva o jogo.',
       ),
       'event',
     );
@@ -102,21 +105,91 @@ export async function election(game: Engine, trigger: Player): Promise<void> {
   // The new government is formed on this election's results; only then does the new year start.
   await formGovernment(game);
 
-  // A fresh year: everyone's popularity resets so each election is decided by that year's politics.
+  // A fresh year: popularity, ⭐ capital and hands reset so each election is decided by that year's politics.
   for (const k of AXIS_KEYS)
     game.mood[k] = Math.round(R.clamp(game.mood[k] + (Math.random() - 0.5) * 0.8, 1, 4) * 10) / 10;
-  for (const q of game.players) q.popularity = R.START_POPULARITY;
+  const swing = moodSwing(game);
+  for (const q of game.players) {
+    q.popularity = R.START_POPULARITY;
+    q.capital = R.START_CAPITAL;
+    game.vetoesUsed.delete(q.id);
+    for (const c of [...q.hand]) game.removeCard(q, c);
+  }
   game.view.refresh();
   await game.view.story({
     headline: L('Today, a new political year began.', 'Hoje começou um novo ano político.'),
     meaning: L(
-      `Every party's popularity resets to <b>${R.START_POPULARITY}</b>, so next year's election is decided by what happens from now on. Seats, laws passed, ⭐ capital and election wins carry over. The public mood has shifted too.`,
-      `A popularidade de todos os partidos volta para <b>${R.START_POPULARITY}</b>, então a próxima eleição será decidida pelo que acontecer daqui em diante. Cadeiras, leis aprovadas, ⭐ capital e vitórias eleitorais continuam valendo. O humor do eleitorado também mudou.`,
+      `Every party's popularity resets to <b>${R.START_POPULARITY}</b> and its ⭐ capital to <b>${R.START_CAPITAL}</b>. Old hands are discarded and everyone is dealt <b>${R.START_HAND}</b> new bills, so next year's election is decided by what happens from now on. Seats, laws passed and points carry over. The public mood has shifted too${swing ? `, drifting away from the new government's ideas (${swing})` : ''}.`,
+      `A popularidade de todos os partidos volta para <b>${R.START_POPULARITY}</b> e o ⭐ capital para <b>${R.START_CAPITAL}</b>. As mãos antigas vão para o descarte e todos recebem <b>${R.START_HAND}</b> novos projetos, então a próxima eleição será decidida pelo que acontecer daqui em diante. Cadeiras, leis aprovadas e pontos continuam valendo. O humor do eleitorado também mudou${swing ? `, afastando-se das ideias do novo governo (${swing})` : ''}.`,
     ),
     tone: 'info',
   });
+  await game.dealHands(game.year);
   yearStartPerks(game);
+  await coalitionVerdict(game);
   game.view.log(L(`<b>Year ${game.year} begins.</b>`, `<b>Começa o Ano ${game.year}.</b>`), 'turn');
+}
+
+/**
+ * Voters drift away from whoever governs: every axis of the Public Mood moves MOOD_SWING away from the Leader of
+ * Congress's position (where it isn't already on it). Governing wears a party out by the next election.
+ * Returns a short description of the shift ('' if nothing moved).
+ */
+export function moodSwing(game: Engine): string {
+  const pm = game.pm();
+  if (!pm) return '';
+  const moved: string[] = [];
+  for (const k of AXIS_KEYS) {
+    const gap = pm.party.axes[k] - game.mood[k];
+    if (Math.abs(gap) < 0.05) continue;
+    const before = game.mood[k];
+    game.mood[k] = Math.round(R.clamp(before - Math.sign(gap) * R.MOOD_SWING, 1, 4) * 10) / 10;
+    if (game.mood[k] !== before) moved.push(`${AXIS_INFO[k].name} ${game.mood[k] < before ? '←' : '→'}`);
+  }
+  game.view.refresh();
+  return moved.join(', ');
+}
+
+/**
+ * Legislative MVP, before every parliamentary election: the party with the most new laws this year that match its
+ * ideas (whoever introduced them) scores a point. Ties: the one those laws are worth most to; still tied, all.
+ */
+async function legislativeMvp(game: Engine): Promise<void> {
+  const laws = game.lawsThisYear;
+  game.lawsThisYear = [];
+  if (!laws.length) return;
+  const scores = game.players.map((q) => {
+    const aligned = laws.filter((c) => R.axisDistance(q.party.axes, c.target!) <= 1);
+    return { q, count: aligned.length, worth: aligned.reduce((s, c) => s + R.billDelta(q.party.axes, c.target!), 0) };
+  });
+  const top = Math.max(...scores.map((s) => s.count));
+  if (top === 0) return;
+  const contenders = scores.filter((s) => s.count === top);
+  const bestWorth = Math.max(...contenders.map((s) => s.worth));
+  const winners = contenders.filter((s) => s.worth === bestWorth).map((s) => s.q);
+  for (const w of winners) w.stats.mvps++;
+  game.view.refresh();
+  const names = and(winners.map(the));
+  game.view.log(
+    L(
+      `📜 Legislative MVP of Year ${game.electionsHeld}: ${winners.map(pn).join(', ')}.`,
+      `📜 MVP legislativo do Ano ${game.electionsHeld}: ${winners.map(pn).join(', ')}.`,
+    ),
+    'gov',
+  );
+  await game.view.story({
+    actorId: winners[0].id,
+    headline: L(
+      `Today, ${names} ${winners.length > 1 ? 'were' : 'was'} named Legislative MVP of the year.`,
+      `Hoje, ${names} ${winners.length > 1 ? 'foram eleitos' : 'foi eleito'} MVP legislativo do ano.`,
+    ),
+    meaning: L(
+      `<b>${top}</b> of the year's ${laws.length} new laws match ${winners.length > 1 ? 'their' : 'its'} ideas, more than any other party's, whoever introduced them. That is worth a <b>point</b>.`,
+      `<b>${top}</b> das ${laws.length} leis novas do ano combinam com as ideias ${winners.length > 1 ? 'deles' : 'do partido'}, mais do que as de qualquer outro partido, não importa quem as apresentou. Isso vale um <b>ponto</b>.`,
+    ),
+    tone: 'good',
+  });
+  for (const w of winners) await game.view.podiumWin(w.id, 'legislative');
 }
 
 export function yearStartPerks(game: Engine): void {

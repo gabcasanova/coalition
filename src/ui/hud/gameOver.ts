@@ -10,13 +10,13 @@ export function showGameOver(modal: HTMLElement, result: GameResult): void {
       (row, i) => `<tr>
         <td>${i + 1}</td>
         <td><b style="color:${css(row.player.party.color)}">${emblem(row.player.party)} ${row.player.party.name}</b></td>
-        <td class="num">${row.wins}</td>
+        <td class="num" title="${row.player.stats.electionWins} 🗳️ + ${row.player.stats.presidencies} 🎖️ + ${row.player.stats.mvps} 📜">${row.points} <small>(${row.player.stats.electionWins}🗳️ ${row.player.stats.presidencies}🎖️ ${row.player.stats.mvps}📜)</small></td>
         <td class="num2">${row.score}</td>
         <td class="det">${row.detail}</td>
       </tr>`,
     )
     .join('');
-  const tied = result.rows.filter((x) => x.wins === result.rows[0].wins).length > 1;
+  const tied = result.rows.filter((x) => x.points === result.rows[0].points).length > 1;
   const how =
     result.kind === 'majority'
       ? L(
@@ -24,8 +24,8 @@ export function showGameOver(modal: HTMLElement, result: GameResult): void {
           `conquista a <b>maioria absoluta no parlamento</b> com ${result.winner.seats} cadeiras!`,
         )
       : L(
-          `wins the game by winning the most elections (${result.winner.stats.electionWins} of ${R.YEARS})${tied ? ', with the best Governance Score as the tiebreak' : ''}.`,
-          `vence o jogo por ganhar mais eleições (${result.winner.stats.electionWins} de ${R.YEARS})${tied ? ', com a melhor Pontuação de Governo como desempate' : ''}.`,
+          `wins the game with the most points: ${R.points(result.winner.stats)} (${result.winner.stats.electionWins} in Congress, ${result.winner.stats.presidencies} presidential, ${result.winner.stats.mvps} as Legislative MVP)${tied ? ', with the best Governance Score as the tiebreak' : ''}.`,
+          `vence o jogo com mais pontos: ${R.points(result.winner.stats)} (${result.winner.stats.electionWins} no Congresso, ${result.winner.stats.presidencies} na presidência, ${result.winner.stats.mvps} como MVP legislativo)${tied ? ', com a melhor Pontuação de Governo como desempate' : ''}.`,
         );
   const winner = result.winner.party;
   modal.innerHTML = `<div class="pr pdialog gameover" style="--pc:${css(winner.color)}">
@@ -37,7 +37,7 @@ export function showGameOver(modal: HTMLElement, result: GameResult): void {
         <tr>
           <th>#</th>
           <th>${L('Party', 'Partido')}</th>
-          <th>🏆 ${L('Elections won', 'Eleições vencidas')}</th>
+          <th title="${L('Parliamentary elections + presidential elections won + years as Legislative MVP', 'Eleições parlamentares + presidenciais vencidas + anos como MVP legislativo')}">🏆 ${L('Points', 'Pontos')}</th>
           <th>${L('Governance', 'Governo')}</th>
           <th>${L('Governance breakdown (tiebreak)', 'Detalhe da pontuação de governo (desempate)')}</th>
         </tr>

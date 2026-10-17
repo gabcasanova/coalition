@@ -15,7 +15,7 @@ export type LeaderRole = 'pm' | 'opp';
 const WALKWAY_R = 7.35;
 
 /**
- * The Prime Minister and the Leader of the Opposition. Each has a dais at one end of the hemicycle (the PM at
+ * The Leader of Congress and the Leader of the Opposition. Each has a dais at one end of the hemicycle (the PM at
  * the government end, on the right) with a high-backed chair and a lectern with a microphone. When a new leader
  * takes office, their figure walks from the party's benches to the chair.
  */
@@ -84,7 +84,9 @@ export class Leaders {
     const top = add(new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.08, 1.05), wood), LX, 1.6);
     top.rotation.z = 0.28;
     const title =
-      role === 'pm' ? L('PRIME MINISTER', 'PRIMEIRO-MINISTRO') : L('LEADER OF THE OPPOSITION', 'LÍDER DA OPOSIÇÃO');
+      role === 'pm'
+        ? L('LEADER OF CONGRESS', 'LÍDER DO CONGRESSO')
+        : L('LEADER OF THE OPPOSITION', 'LÍDER DA OPOSIÇÃO');
     const plate = new THREE.Mesh(
       new THREE.PlaneGeometry(0.95, 0.4),
       new THREE.MeshBasicMaterial({

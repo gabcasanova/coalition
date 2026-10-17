@@ -6,6 +6,10 @@ export const TOTAL_SEATS = 150;
 export const MAJORITY = 76;
 export const YEARS = 5;
 export const START_HAND = 7;
+/** Each year every party is offered this many bills and keeps START_HAND of them. */
+export const DRAFT_OFFER = 12;
+/** How far the Public Mood drifts away from the Leader of Congress's views each year, on every axis. */
+export const MOOD_SWING = 0.35;
 export const HAND_LIMIT = 10;
 
 export const START_POPULARITY = 30;
@@ -13,6 +17,44 @@ export const START_CAPITAL = 15;
 
 // Costs in ⭐ Political Capital
 export const VETO_COST = 6;
+/**
+ * A party's points, which decide the game: one per parliamentary election won, one per presidency won and one
+ * per year as Legislative MVP.
+ */
+export const points = (s: { electionWins: number; presidencies: number; mvps: number }) =>
+  s.electionWins + s.presidencies + s.mvps;
+
+/** Vetoes per year for the Leader of Congress and the Leader of the Opposition (everyone else has one). */
+export const LEADER_VETOES = 2;
+/** Extra vetoes per year for the party that holds the presidency. */
+export const PRESIDENT_VETOES = 2;
+/** Leader scrutiny: the most popular party's popularity gains are multiplied by this (the press watches it). */
+export const LEADER_GAIN_MULT = 0.75;
+
+/**
+ * Coalition loyalty: how far from a partner's views a bill by the Leader of Congress can be and still get its
+ * vote, depending on how close the partner is to the Leader (`d` = their ideological distance). Close allies
+ * stick together (up to 2.25); distant ones vote only for what they like anyway (1.25, as outside government).
+ */
+export const coalitionLoyalty = (d: number) => clamp(2.6 - d, 1.25, 2.25);
+
+/**
+ * What it costs a coalition partner's popularity to swallow a bill it dislikes, as a multiplier on the backlash:
+ * cheap for a close ally, dear for a distant one (so distant partners rebel more).
+ */
+export const loyaltyCost = (d: number) => 0.5 + d;
+
+/**
+ * Voters judge coalitions: popularity for a party governing alongside a Leader of Congress at ideological distance
+ * `d`. Close allies are rewarded (up to +4), unlikely partners punished (down to −6); distance 1 is neutral.
+ */
+export const coherenceBonus = (d: number) => clamp(Math.round((1 - d) * 6), -6, 4);
+/**
+ * Chance that a Crisis square draws a super crisis instead of a regular one: higher for the two most popular
+ * parties (the press digs hardest into the front-runners).
+ */
+export const SUPER_CRISIS_CHANCE = 0.08;
+export const SUPER_CRISIS_CHANCE_FRONTRUNNER = 0.22;
 export const WHIP_COST = 3;
 export const INVESTIGATE_COST = 3;
 
@@ -77,23 +119,30 @@ export function poleName(k: AxisKey, v: number): string {
 /** Left→right ideological score. */
 export const ideologyScore = (a: Axes) => a.econ * 0.45 + a.social * 0.35 + a.inst * 0.2;
 
-/**
- * Seating order for the chamber, left to right: opposition benches (by ideology),
- * then the government benches with the Prime Minister's party at the far right.
- */
-/** The Leader of the Opposition: the largest party outside the government (none until a government exists). */
-export function oppositionLeader<T extends { id: number; inGov: boolean; isPM: boolean; seats: number }>(
-  players: T[],
-): T | undefined {
-  if (!players.some((p) => p.isPM)) return undefined;
-  return [...players].filter((p) => !p.inGov && p.seats > 0).sort((a, b) => b.seats - a.seats || a.id - b.id)[0];
+/** The Leader of the Opposition (none until the opposition has formed). */
+export function oppositionLeader<T extends { isOppLeader: boolean }>(players: T[]): T | undefined {
+  return players.find((p) => p.isOppLeader);
 }
 
-export function benchOrder<T extends { inGov: boolean; isPM: boolean; party: { axes: Axes } }>(players: T[]): T[] {
+/**
+ * Vetoes a party may use each year: the Leader of Congress and the Leader of the Opposition get LEADER_VETOES
+ * (everyone else one), and the President's party PRESIDENT_VETOES more on top.
+ */
+export const vetoAllowance = (p: { isPM: boolean; isOppLeader: boolean; isPresident: boolean }) =>
+  (p.isPM || p.isOppLeader ? LEADER_VETOES : 1) + (p.isPresident ? PRESIDENT_VETOES : 0);
+
+/** Neither in government nor on the opposition bench. */
+export const isIndependent = (p: { inGov: boolean; inOpp: boolean }) => !p.inGov && !p.inOpp;
+
+/** Left to right: the opposition bench, the independents (crossbench), then the government with the PM's party last. */
+export function benchOrder<T extends { inGov: boolean; inOpp: boolean; isPM: boolean; party: { axes: Axes } }>(
+  players: T[],
+): T[] {
   const byIdeology = (a: T, b: T) => ideologyScore(a.party.axes) - ideologyScore(b.party.axes);
-  const opp = players.filter((p) => !p.inGov).sort(byIdeology);
+  const opp = players.filter((p) => p.inOpp).sort(byIdeology);
+  const independents = players.filter(isIndependent).sort(byIdeology);
   const gov = players.filter((p) => p.inGov).sort((a, b) => Number(a.isPM) - Number(b.isPM) || byIdeology(a, b));
-  return [...opp, ...gov];
+  return [...opp, ...independents, ...gov];
 }
 
 /**

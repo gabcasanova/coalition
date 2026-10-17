@@ -102,8 +102,12 @@ export interface PlayerStats {
   cabinetYears: number;
   billsPassed: number;
   billsIntroduced: number;
-  /** Elections won (most seats that year): the main victory measure. */
+  /** Parliamentary elections won (most seats that year). */
   electionWins: number;
+  /** Presidential elections won. Together with electionWins and mvps, the points that decide the game (see R.points). */
+  presidencies: number;
+  /** Years as Legislative MVP: the party with the most new laws matching its ideas that year. */
+  mvps: number;
 }
 
 export interface Player {
@@ -119,8 +123,14 @@ export interface Player {
   seats: number;
   hand: Card[];
   portfolios: Portfolio[];
+  /** Leads the government: the Leader of Congress ("PM" in the code). */
   isPM: boolean;
   inGov: boolean;
+  /** Sits on the opposition bench (the opposition leader plus the one party they invited). */
+  inOpp: boolean;
+  isOppLeader: boolean;
+  /** Won the latest presidential election (nobody is, under the Provisional President of the first year). */
+  isPresident: boolean;
   stats: PlayerStats;
 }
 
@@ -128,6 +138,7 @@ export type SquareType =
   | 'election'
   | 'formation'
   | 'midterm'
+  | 'presidential'
   | 'debate'
   | 'legislature'
   | 'media'
@@ -187,6 +198,8 @@ export interface Prompt {
 /** Anything that can make decisions for a player: a human UI or an AI. */
 export interface Controller {
   choose(prompt: Prompt): Promise<number>;
+  /** Picks exactly `count` of the prompt's options (drafting bills); returns their indices. */
+  chooseMany(prompt: Prompt, count: number): Promise<number[]>;
 }
 
 // ───────────── event cards (content lives in src/data) ─────────────

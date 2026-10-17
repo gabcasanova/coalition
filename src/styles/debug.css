@@ -1,0 +1,266 @@
+/* ─── Debug menu (Ctrl+Q) ─── */
+#debugmenu {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: min(380px, calc(100vw - 32px));
+  padding: 12px 14px 14px;
+  border-radius: var(--radius);
+  border: 1px dashed rgba(255, 181, 71, 0.6);
+  background: var(--panel-solid);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  line-height: 1.45;
+}
+#debugmenu.hidden {
+  display: none;
+}
+#debugmenu .dbtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  color: var(--event);
+  margin-bottom: 6px;
+}
+#debugmenu .dbtitle span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 5px;
+}
+#debugmenu .dbclose {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+}
+#debugmenu .dbstate {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+#debugmenu p {
+  margin-bottom: 10px;
+}
+#debugmenu .dbrow {
+  display: flex;
+  gap: 8px;
+}
+#debugmenu button[data-rounds],
+#debugmenu button[data-until],
+#debugmenu button[data-act='stop'] {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 181, 71, 0.5);
+  background: rgba(255, 181, 71, 0.14);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+#debugmenu button[data-rounds]:hover,
+#debugmenu button[data-until]:hover,
+#debugmenu button[data-act='stop']:hover {
+  background: rgba(255, 181, 71, 0.26);
+}
+#debugmenu button[data-act='stop'] {
+  width: 100%;
+}
+#debugmenu .dbbar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+#debugmenu .dbbar div {
+  height: 100%;
+  background: var(--event);
+  transition: width 0.2s;
+}
+#debugmenu .dbsub {
+  margin: 10px 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+/* Waiting for an election: a stripe sweeping back and forth instead of a progress bar. */
+#debugmenu .dbwait div {
+  width: 30%;
+  animation: dbsweep 1.2s ease-in-out infinite alternate;
+}
+@keyframes dbsweep {
+  from {
+    margin-left: 0;
+  }
+  to {
+    margin-left: 70%;
+  }
+}
+
+#debugmenu .dbsim,
+#simreport button {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 181, 71, 0.5);
+  background: rgba(255, 181, 71, 0.14);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+#debugmenu .dbsim:hover,
+#simreport button:hover {
+  background: rgba(255, 181, 71, 0.26);
+}
+
+/* ─── Simulation report ─── */
+#simreport {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(4, 6, 10, 0.72);
+}
+#simreport.hidden {
+  display: none;
+}
+.srpanel {
+  width: min(1240px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  border: 1px dashed rgba(255, 181, 71, 0.6);
+  background: var(--panel-solid);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.srprogress {
+  width: min(460px, 100%);
+}
+.srprogress p {
+  margin: 8px 0;
+  color: var(--muted);
+}
+.srprogress .dbbar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.srprogress .dbbar div {
+  height: 100%;
+  background: var(--event);
+}
+.srhead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.srtitle {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--event);
+}
+.srsub {
+  color: var(--muted);
+}
+.srhls {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.srhl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border-left: 4px solid var(--pc);
+  background: rgba(255, 255, 255, 0.05);
+}
+.srhlicon {
+  grid-row: span 3;
+  font-size: 22px;
+  align-self: center;
+}
+.srhllabel {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.srhlname {
+  font-weight: 800;
+}
+.srhldetail {
+  font-size: 12px;
+  color: #ffd76a;
+}
+.srtablewrap {
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+.srtable {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+.srtable th {
+  font-size: 11px;
+  font-weight: 800;
+  text-align: left;
+  color: var(--muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  cursor: help;
+}
+.srtable td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.srtable td small {
+  color: var(--muted);
+}
+.srtable td.best {
+  background: rgba(255, 215, 106, 0.14);
+  color: #ffd76a;
+  font-weight: 800;
+}
+.srparty {
+  font-weight: 800;
+  border-left: 4px solid var(--pc);
+  padding-left: 6px;
+}
+.srfacts {
+  margin: 0 0 8px 18px;
+}
+.srfacts li {
+  margin-bottom: 4px;
+}
+.srnote {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.srbuttons {
+  display: flex;
+  gap: 8px;
+}

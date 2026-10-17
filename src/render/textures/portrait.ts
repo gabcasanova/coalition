@@ -1,5 +1,5 @@
 /**
- * The Prime Minister's official portrait, propaganda-poster style: the leader's bust in a buttoned tunic before a
+ * The Leader of Congress's official portrait, propaganda-poster style: the leader's bust in a buttoned tunic before a
  * sunburst in the party's colour, the party emblem pinned on the chest, and a title plate below.
  * The canvas is 512×768: the painting fills the top 600 px, the title plate the rest.
  */
@@ -12,7 +12,7 @@ import { css, drawCover, drawEmblem, fitText, FONT, makeCanvas, mix, toTexture }
 /** Height of the painting; the title plate fills the rest of the canvas. */
 const PAINTING_H = 600;
 
-/** Canvas + texture for the portrait (redrawn by drawPortrait whenever the Prime Minister changes). */
+/** Canvas + texture for the portrait (redrawn by drawPortrait whenever the Leader of Congress changes). */
 export function portraitCanvas(): { canvas: HTMLCanvasElement; texture: THREE.CanvasTexture } {
   const { canvas } = makeCanvas(512, 768);
   return { canvas, texture: toTexture(canvas) };
@@ -153,7 +153,7 @@ function drawBust(ctx: CanvasRenderingContext2D, W: number, party: PartyDef | nu
   ctx.fill();
 
   if (ghost) {
-    // No Prime Minister yet: a question mark where the face would be.
+    // No Leader of Congress yet: a question mark where the face would be.
     ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
     ctx.font = `900 150px ${FONT}`;
     ctx.textAlign = 'center';
@@ -296,7 +296,7 @@ function drawVarnish(ctx: CanvasRenderingContext2D, W: number): void {
   ctx.strokeRect(14, 14, W - 28, PAINTING_H - 28);
 }
 
-/** "PRIME MINISTER" and the party name on a plate in the party colour. */
+/** "LEADER OF CONGRESS" and the party name on a plate in the party colour. */
 function drawTitlePlate(
   ctx: CanvasRenderingContext2D,
   W: number,
@@ -316,8 +316,53 @@ function drawTitlePlate(
   ctx.textBaseline = 'alphabetic';
   ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
   ctx.shadowBlur = 8;
+  // Text stays clear of the frame's inner border.
+  const maxWidth = W - 90;
   ctx.fillStyle = '#ffd76a';
-  fitText(ctx, title, W / 2, PAINTING_H + 76, W - 40, 56);
+  const oneLine = fittingSize(ctx, [title], maxWidth, 56);
+  if (oneLine >= TITLE_MIN || !title.includes(' ')) {
+    ctx.font = `900 ${oneLine}px ${FONT}`;
+    ctx.fillText(title, W / 2, PAINTING_H + 76);
+    ctx.fillStyle = '#fff4dc';
+    fitText(ctx, subtitle, W / 2, PAINTING_H + 132, maxWidth, 32, 700);
+    return;
+  }
+  // A long title ("LEADER OF CONGRESS") goes on two big lines rather than one small one.
+  const lines = splitInTwo(ctx, title);
+  const px = fittingSize(ctx, lines, maxWidth, 52);
+  ctx.font = `900 ${px}px ${FONT}`;
+  ctx.fillText(lines[0], W / 2, PAINTING_H + 54);
+  ctx.fillText(lines[1], W / 2, PAINTING_H + 54 + px * 0.98);
   ctx.fillStyle = '#fff4dc';
-  fitText(ctx, subtitle, W / 2, PAINTING_H + 132, W - 40, 32, 700);
+  fitText(ctx, subtitle, W / 2, PAINTING_H + 152, maxWidth, 28, 700);
+}
+
+/** Smallest font size a one-line title may shrink to before it is split over two lines. */
+const TITLE_MIN = 46;
+
+/** The largest font size, up to `size`, at which every line fits in `maxWidth`. */
+function fittingSize(ctx: CanvasRenderingContext2D, lines: string[], maxWidth: number, size: number): number {
+  let px = size;
+  for (; px > 16; px--) {
+    ctx.font = `900 ${px}px ${FONT}`;
+    if (lines.every((line) => ctx.measureText(line).width <= maxWidth)) break;
+  }
+  return px;
+}
+
+/** Splits a title at the space that makes its two lines the most even. */
+function splitInTwo(ctx: CanvasRenderingContext2D, title: string): [string, string] {
+  const words = title.split(' ');
+  ctx.font = `900 52px ${FONT}`;
+  let best: [string, string] = [title, ''];
+  let bestWidth = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const lines: [string, string] = [words.slice(0, i).join(' '), words.slice(i).join(' ')];
+    const width = Math.max(...lines.map((line) => ctx.measureText(line).width));
+    if (width < bestWidth) {
+      bestWidth = width;
+      best = lines;
+    }
+  }
+  return best;
 }

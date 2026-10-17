@@ -105,7 +105,7 @@ export function makePawn(party: PartyDef, caption = party.short): THREE.Group {
 }
 
 /**
- * A party leader (Prime Minister or Leader of the Opposition): a big peg person in the party colour wearing a
+ * A party leader (Leader of Congress or Leader of the Opposition): a big peg person in the party colour wearing a
  * bowtie, with the party emblem above. Faces local +z. Like the MPs, its origin sits 0.3 × LEADER_SCALE above the
  * floor it stands on.
  */

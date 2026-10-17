@@ -5,8 +5,8 @@ import { type Card, type Player } from '../types';
 import { W_CAP, W_CARD } from './aiValues';
 import { hit } from './defense';
 import type { Engine, MenuEntry } from './Engine';
-import { formGovernment } from './government';
-import { aoP, doP, pop, the, The } from './text';
+import { coalitionVerdict, formGovernment } from './government';
+import { and, aoP, doP, pop, the, The } from './text';
 
 export async function committee(game: Engine, p: Player): Promise<void> {
   const interior = p.portfolios.includes('interior');
@@ -52,7 +52,7 @@ export async function committee(game: Engine, p: Player): Promise<void> {
           L(`Leak “${c.name}” against whom?`, `Vazar “${c.name}” contra quem?`),
         );
         game.removeCard(p, c);
-        const bonus = !p.inGov && target.inGov ? 3 : 0;
+        const bonus = p.inOpp && target.inGov ? 3 : 0;
         const amount = c.power! + bonus;
         await game.tell(
           p,
@@ -131,14 +131,14 @@ export async function committee(game: Engine, p: Player): Promise<void> {
     },
   });
   const nc = p.hand.find((c) => c.kind === 'noconfidence');
-  if (nc && !p.inGov) {
-    const opp = game.players.filter((q) => !q.inGov).reduce((s, q) => s + q.seats, 0);
+  if (nc && p.inOpp) {
+    const opp = noConfidenceVotes(game).seats;
     entries.push({
       opt: {
         label: L('⚖️ Vote of No Confidence', '⚖️ Moção de Desconfiança'),
         detail: L(
-          `Opposition holds ${opp} seats (needs ${R.MAJORITY})`,
-          `A oposição tem ${opp} cadeiras (precisa de ${R.MAJORITY})`,
+          `Opposition + sympathetic independents: ${opp} votes (needs ${R.MAJORITY})`,
+          `Oposição + independentes simpáticos: ${opp} votos (precisa de ${R.MAJORITY})`,
         ),
         card: nc,
         ai: opp >= R.MAJORITY ? 9 : -5,
@@ -161,8 +161,8 @@ export async function chooseRival(game: Engine, p: Player, title: string): Promi
     options: rivals.map((q) => ({
       label: q.party.name,
       detail: L(
-        `Popularity ${q.popularity} · ${q.seats} seats · ${q.isPM ? 'Prime Minister' : q.inGov ? 'Government' : 'Opposition'}`,
-        `Popularidade ${q.popularity} · ${q.seats} cadeiras · ${q.isPM ? 'Primeiro-Ministro' : q.inGov ? 'Governo' : 'Oposição'}`,
+        `Popularity ${q.popularity} · ${q.seats} seats · ${q.isPM ? 'Leader of Congress' : q.inGov ? 'Government' : q.inOpp ? 'Opposition' : 'Independent'}`,
+        `Popularidade ${q.popularity} · ${q.seats} cadeiras · ${q.isPM ? 'Líder do Congresso' : q.inGov ? 'Governo' : q.inOpp ? 'Oposição' : 'Independente'}`,
       ),
       color: q.party.color,
       ai: q.popularity / 10 + (game.isLeader(q) ? 3 : 0) + (q.inGov && !p.inGov ? 1.5 : 0),
@@ -171,10 +171,32 @@ export async function chooseRival(game: Engine, p: Player, title: string): Promi
   return rivals[i];
 }
 
+/**
+ * Votes for a motion of no confidence: the opposition bench, plus every independent that is ideologically closer to
+ * the Leader of the Opposition than to the Leader of Congress.
+ */
+export function noConfidenceVotes(game: Engine): { seats: number; independents: Player[] } {
+  const pm = game.pm();
+  const leader = R.oppositionLeader(game.players);
+  const independents = game.players.filter(
+    (q) =>
+      R.isIndependent(q) &&
+      (!pm ||
+        !leader ||
+        R.partyDistance(q.party.axes, leader.party.axes) < R.partyDistance(q.party.axes, pm.party.axes)),
+  );
+  const bench = game.players.filter((q) => q.inOpp);
+  const seats = [...bench, ...independents].reduce((s, q) => s + q.seats, 0);
+  return { seats, independents };
+}
+
 export async function noConfidence(game: Engine, p: Player, card: Card): Promise<void> {
   game.removeCard(p, card);
-  const opp = game.players.filter((q) => !q.inGov).reduce((s, q) => s + q.seats, 0);
+  const { seats: opp, independents } = noConfidenceVotes(game);
   const pm = game.pm();
+  const helped = independents.length
+    ? L(` (with the votes of ${and(independents.map(the))})`, ` (com os votos ${independents.map(doP).join(', ')})`)
+    : '';
   const did = L(
     'called a vote of no confidence in the government',
     'apresentou uma moção de desconfiança contra o governo',
@@ -185,21 +207,22 @@ export async function noConfidence(game: Engine, p: Player, card: Card): Promise
       p,
       did,
       L(
-        `The opposition holds ${opp} seats, enough to win <b>${opp}–${R.TOTAL_SEATS - opp}</b>. The government of ${the(pm)} <b>falls</b> and ${the(pm)} loses 5 popularity. A new government must be formed.`,
-        `A oposição tem ${opp} cadeiras, o suficiente para vencer por <b>${opp}–${R.TOTAL_SEATS - opp}</b>. O governo ${doP(pm)} <b>cai</b> e ${the(pm)} perde 5 de popularidade. Um novo governo precisa ser formado.`,
+        `The opposition gathers ${opp} votes${helped}, enough to win <b>${opp}–${R.TOTAL_SEATS - opp}</b>. The government of ${the(pm)} <b>falls</b> and ${the(pm)} loses 5 popularity. A new government must be formed.`,
+        `A oposição reúne ${opp} votos${helped}, o suficiente para vencer por <b>${opp}–${R.TOTAL_SEATS - opp}</b>. O governo ${doP(pm)} <b>cai</b> e ${the(pm)} perde 5 de popularidade. Um novo governo precisa ser formado.`,
       ),
       'event',
       { card },
     );
     await formGovernment(game, pm.id);
+    await coalitionVerdict(game);
   } else {
     const got = game.gainPop(p, -3);
     await game.tell(
       p,
       did,
       L(
-        `The opposition only holds ${opp} seats, so the motion is <b>defeated</b> ${opp}–${R.TOTAL_SEATS - opp}. The failed stunt costs ${the(p)} ${pop(got)}.`,
-        `A oposição só tem ${opp} cadeiras, então a moção é <b>derrotada</b> por ${opp}–${R.TOTAL_SEATS - opp}. A manobra fracassada custa ${pop(got)} ${aoP(p)}.`,
+        `The opposition only gathers ${opp} votes${helped}, so the motion is <b>defeated</b> ${opp}–${R.TOTAL_SEATS - opp}. The failed stunt costs ${the(p)} ${pop(got)}.`,
+        `A oposição só reúne ${opp} votos${helped}, então a moção é <b>derrotada</b> por ${opp}–${R.TOTAL_SEATS - opp}. A manobra fracassada custa ${pop(got)} ${aoP(p)}.`,
       ),
       'bad',
       { card },
